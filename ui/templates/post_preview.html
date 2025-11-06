@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-6 py-8 max-w-4xl">
+        <div class="mb-6">
+            <a href="/" class="text-blue-600 hover:text-blue-800 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Dashboard
+            </a>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <div id="post-content">
+                <p class="text-gray-500">Loading post...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const postId = window.location.pathname.split('/').pop();
+        
+        async function loadPost() {
+            try {
+                const response = await fetch(`/api/posts/${postId}`);
+                const post = await response.json();
+                
+                const contentHtml = `
+                    <div class="mb-6">
+                        <img src="${post.image_url}" alt="${post.title}" class="w-full rounded-lg mb-4">
+                    </div>
+                    
+                    <h1 class="text-4xl font-bold text-gray-900 mb-4">${post.title}</h1>
+                    
+                    <div class="flex items-center space-x-4 text-sm text-gray-600 mb-6">
+                        <span>Category: ${post.category}</span>
+                        <span>•</span>
+                        <span>SEO Score: ${post.seo_score}/100</span>
+                        <span>•</span>
+                        <span>${new Date(post.created_at).toLocaleDateString()}</span>
+                    </div>
+                    
+                    <div class="prose max-w-none">
+                        ${marked.parse(post.content)}
+                    </div>
+                    
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="font-semibold text-gray-700 mb-2">Meta Description:</h3>
+                        <p class="text-gray-600">${post.meta_description}</p>
+                        
+                        <h3 class="font-semibold text-gray-700 mt-4 mb-2">Keywords:</h3>
+                        <p class="text-gray-600">${post.keywords}</p>
+                    </div>
+                `;
+                
+                document.getElementById('post-content').innerHTML = contentHtml;
+            } catch (error) {
+                document.getElementById('post-content').innerHTML = '<p class="text-red-500">Error loading post</p>';
+            }
+        }
+        
+        loadPost();
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+.venv/
+data/
+scripts/
+
+.env
+.env.example
+
+yoast-rest-api.php
+yoast-rest-api.zip
+
+test.py

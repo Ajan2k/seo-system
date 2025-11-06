@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Blog Automation - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <h1 class="text-2xl font-bold">AI Blog Automation</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="showWebsiteModal()" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition">
+                        + Add Website
+                    </button>
+                    <a href="/docs" target="_blank" class="text-white hover:text-blue-200 transition">API Docs</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Generate New Post Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Generate New Blog Post
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Category / Topic</label>
+                    <input type="text" id="category" placeholder="e.g., AI Technology, Digital Marketing" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Target Website</label>
+                    <select id="website-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Load websites...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2">Custom Topic (Optional)</label>
+                <input type="text" id="custom-topic" placeholder="Leave empty to use trending topics" 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2">Target SEO Score: <span id="score-display">80</span></label>
+                <input type="range" id="target-score" min="60" max="95" value="80" 
+                       class="w-full" oninput="document.getElementById('score-display').textContent = this.value">
+            </div>
+            
+            <button onclick="generateBlog()" id="generate-btn" 
+                    class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition transform hover:scale-105">
+                🚀 Generate Blog Post
+            </button>
+            
+            <!-- Generation Progress -->
+            <div id="generation-progress" class="hidden mt-4">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <div class="flex items-center">
+                        <div class="spinner mr-3"></div>
+                        <div>
+                            <p class="font-semibold text-blue-800">Generating your blog post...</p>
+                            <p class="text-sm text-blue-600" id="progress-message">This may take 30-60 seconds</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Websites Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Websites</h2>
+            <div id="websites-list" class="space-y-3">
+                <!-- Websites will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Posts Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Generated Posts</h2>
+            <div id="posts-list" class="space-y-4">
+                <!-- Posts will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Website Modal -->
+    <div id="website-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Add New Website</h3>
+                <button onclick="closeWebsiteModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="website-form" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Website Name</label>
+                    <input type="text" id="ws-name" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Domain</label>
+                    <input type="text" id="ws-domain" placeholder="https://example.com" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">CMS Type</label>
+                    <select id="ws-cms-type" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="wordpress">WordPress</option>
+                        <option value="ghost">Ghost</option>
+                        <option value="custom">Custom API</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">API URL</label>
+                    <input type="text" id="ws-api-url" placeholder="https://example.com" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">API Key</label>
+                    <input type="text" id="ws-api-key" placeholder="username:password (WordPress) or API key" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <p class="text-sm text-gray-500 mt-1">WordPress: username:application_password | Ghost: id:secret</p>
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                    Add Website
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
