@@ -1,12 +1,14 @@
+# app/routes/seo_score.py
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from app.utils.seo_utils import calculate_seo_score, suggest_improvements
-from app.database import Database
+from app.database import db
 import re
 
 router = APIRouter()
-db = Database()
+
 
 class SEOAnalyzeRequest(BaseModel):
     title: str
@@ -15,16 +17,20 @@ class SEOAnalyzeRequest(BaseModel):
     meta_description: Optional[str] = ""
     url: Optional[str] = None
 
+
 class SEORecalculateRequest(BaseModel):
     post_id: int
+
 
 class SEOCompareRequest(BaseModel):
     post_id_1: int
     post_id_2: int
 
+
 class SEOKeywordRequest(BaseModel):
     content: str
     count: int = 10
+
 
 @router.post("/analyze-seo")
 async def analyze_seo(request: SEOAnalyzeRequest):
@@ -109,7 +115,7 @@ async def recalculate_seo(request: SEORecalculateRequest):
     """
     try:
         # Get post from database
-        post = db.get_post(request.post_id)
+        post = await db.get_post(request.post_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         
@@ -125,14 +131,7 @@ async def recalculate_seo(request: SEORecalculateRequest):
         )
         
         # Update in database
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE posts SET seo_score = ? WHERE id = ?",
-            (seo_details['total_score'], request.post_id)
-        )
-        conn.commit()
-        conn.close()
+        await db.update_post(request.post_id, seo_score=seo_details['total_score'])
         
         # Generate suggestions
         suggestions = suggest_improvements(seo_details)
@@ -163,8 +162,8 @@ async def compare_seo(request: SEOCompareRequest):
     """
     try:
         # Get both posts
-        post1 = db.get_post(request.post_id_1)
-        post2 = db.get_post(request.post_id_2)
+        post1 = await db.get_post(request.post_id_1)
+        post2 = await db.get_post(request.post_id_2)
         
         if not post1 or not post2:
             raise HTTPException(status_code=404, detail="One or both posts not found")
@@ -293,7 +292,7 @@ async def get_seo_statistics():
     Get overall SEO statistics for all posts
     """
     try:
-        posts = db.get_posts(limit=1000)
+        posts = await db.get_posts(limit=1000)
         
         if not posts:
             return {
@@ -360,7 +359,7 @@ async def get_seo_checklist(post_id: int):
     - **post_id**: Post ID to check
     """
     try:
-        post = db.get_post(post_id)
+        post = await db.get_post(post_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         

@@ -1,3 +1,5 @@
+# app/main.py
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,7 +14,10 @@ import requests
 # Load environment variables
 load_dotenv()
 
-# Import routes
+# Import the async database instance
+from app.database import db
+
+# Import route modules
 from app.routes import generate_blog, publish_post, websites, image_gen, seo_score
 
 # Initialize FastAPI app
@@ -21,6 +26,14 @@ app = FastAPI(
     description="Free local AI blog automation tool powered by Groq API with clean URL support",
     version="1.1.0"
 )
+
+# <--- CRITICAL: Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """On startup, initialize the database."""
+    print("🚀 Application starting up...")
+    await db.init_db()
+    print("✅ Database initialized.")
 
 # CORS middleware
 app.add_middleware(
@@ -35,12 +48,13 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="ui/static"), name="static")
 templates = Jinja2Templates(directory="ui/templates")
 
-# Include routers
+# <--- FIXED: Include routers (removed duplicates)
 app.include_router(generate_blog.router, prefix="/api", tags=["Generate"])
 app.include_router(publish_post.router, prefix="/api", tags=["Publish"])
 app.include_router(websites.router, prefix="/api", tags=["Websites"])
 app.include_router(image_gen.router, prefix="/api", tags=["Images"])
 app.include_router(seo_score.router, prefix="/api", tags=["SEO"])
+
 
 # WordPress configuration check endpoint
 class WordPressCheck(BaseModel):
@@ -130,9 +144,8 @@ if __name__ == "__main__":
     # Create data directory if it doesn't exist
     os.makedirs("data", exist_ok=True)
     
-    # Initialize database
-    from app.database import Database
-    db = Database()
+    # <--- REMOVED: Redundant database initialization
+    # The startup event will handle this automatically
     
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", 8000))

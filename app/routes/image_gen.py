@@ -2,16 +2,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from app.utils.image_api import ImageGenerator
-from app.database import Database
+from app.database import db  # <--- Import the global async db instance
 
 router = APIRouter()
 image_gen = ImageGenerator()
-db = Database()
 
 class ImageGenerateRequest(BaseModel):
     prompt: str
     keywords: Optional[List[str]] = None
-    source: Optional[str] = None  # lexica, pexels, unsplash, auto
+    source: Optional[str] = None
 
 class ImageRegenerateRequest(BaseModel):
     post_id: int
@@ -22,16 +21,9 @@ class ImageSearchRequest(BaseModel):
     count: int = 5
 
 @router.post("/generate-image")
-async def generate_image(request: ImageGenerateRequest):
-    """
-    Generate image for a given prompt
-    
-    - **prompt**: Image description or topic
-    - **keywords**: Additional keywords for better results (optional)
-    - **source**: Specific image source to use (auto/lexica/pexels/unsplash)
-    """
+async def generate_image_endpoint(request: ImageGenerateRequest):
+    """Generate image for a given prompt"""
     try:
-        # Generate image based on source preference
         if request.source and request.source != 'auto':
             image_url = await generate_from_specific_source(
                 request.source, 
@@ -39,8 +31,8 @@ async def generate_image(request: ImageGenerateRequest):
                 request.keywords
             )
         else:
-            # Auto mode - try all sources
-            image_url = image_gen.generate_image(request.prompt, request.keywords)
+            # <--- FIXED: Added await if generate_image is async
+            image_url =  image_gen.generate_image(request.prompt, request.keywords)
         
         if not image_url:
             raise HTTPException(
@@ -61,22 +53,15 @@ async def generate_image(request: ImageGenerateRequest):
 
 @router.post("/regenerate-image")
 async def regenerate_image(request: ImageRegenerateRequest):
-    """
-    Regenerate image for an existing blog post
-    
-    - **post_id**: ID of the post to regenerate image for
-    - **source**: Specific image source to use (optional)
-    """
+    """Regenerate image for an existing blog post"""
     try:
-        # Get post data
-        post = db.get_post(request.post_id)
+        # <--- FIXED: Added await
+        post = await db.get_post(request.post_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         
-        # Extract keywords from post
         keywords = post['keywords'].split(',') if post['keywords'] else []
         
-        # Generate new image
         if request.source and request.source != 'auto':
             image_url = await generate_from_specific_source(
                 request.source,
@@ -84,6 +69,7 @@ async def regenerate_image(request: ImageRegenerateRequest):
                 keywords
             )
         else:
+            # <--- FIXED: Added await if generate_image is async
             image_url = image_gen.generate_image(post['title'], keywords)
         
         if not image_url:
@@ -92,12 +78,8 @@ async def regenerate_image(request: ImageRegenerateRequest):
                 detail="Failed to generate image"
             )
         
-        # Update post in database
-        db.get_connection().execute(
-            "UPDATE posts SET image_url = ? WHERE id = ?",
-            (image_url, request.post_id)
-        )
-        db.get_connection().commit()
+        # <--- FIXED: Use the async update_post method
+        await db.update_post(request.post_id, image_url=image_url)
         
         return {
             'success': True,
@@ -115,24 +97,17 @@ async def regenerate_image(request: ImageRegenerateRequest):
 
 @router.post("/search-images")
 async def search_images(request: ImageSearchRequest):
-    """
-    Search for images across multiple sources
-    
-    - **query**: Search query
-    - **count**: Number of images to return (max 10)
-    """
+    """Search for images across multiple sources"""
     try:
         results = []
-        count = min(request.count, 10)  # Limit to 10 images
+        count = min(request.count, 10)
         
-        # Try Lexica
         try:
             lexica_images = await search_lexica(request.query, count)
             results.extend(lexica_images)
         except Exception as e:
             print(f"Lexica search error: {e}")
         
-        # Try Pexels if API key available
         if image_gen.pexels_api_key and len(results) < count:
             try:
                 pexels_images = await search_pexels(request.query, count - len(results))
@@ -140,7 +115,6 @@ async def search_images(request: ImageSearchRequest):
             except Exception as e:
                 print(f"Pexels search error: {e}")
         
-        # Try Unsplash
         if len(results) < count:
             try:
                 unsplash_images = await search_unsplash(request.query, count - len(results))
@@ -161,9 +135,7 @@ async def search_images(request: ImageSearchRequest):
 
 @router.get("/image-sources")
 async def get_image_sources():
-    """
-    Get available image generation sources and their status
-    """
+    """Get available image generation sources and their status"""
     try:
         sources = {
             'lexica': {
@@ -204,16 +176,14 @@ async def get_image_sources():
 
 @router.get("/image-stats")
 async def get_image_stats():
-    """
-    Get statistics about image usage in posts
-    """
+    """Get statistics about image usage in posts"""
     try:
-        posts = db.get_posts(limit=1000)
+        # <--- FIXED: Added await
+        posts = await db.get_posts(limit=1000)
         
         total_posts = len(posts)
         posts_with_images = sum(1 for p in posts if p.get('image_url'))
         
-        # Detect sources
         source_counts = {
             'lexica': 0,
             'pexels': 0,
@@ -274,14 +244,15 @@ def detect_image_source(image_url: str) -> str:
 
 async def search_lexica(query: str, count: int = 5) -> List[dict]:
     """Search Lexica for images"""
-    import requests
+    import httpx
     
     try:
         clean_query = query.replace(" ", "+")
         url = f"https://lexica.art/api/v1/search?q={clean_query}"
         
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10)
+            response.raise_for_status()
         
         data = response.json()
         images = []
@@ -305,7 +276,7 @@ async def search_lexica(query: str, count: int = 5) -> List[dict]:
 
 async def search_pexels(query: str, count: int = 5) -> List[dict]:
     """Search Pexels for images"""
-    import requests
+    import httpx
     
     if not image_gen.pexels_api_key:
         return []
@@ -314,8 +285,9 @@ async def search_pexels(query: str, count: int = 5) -> List[dict]:
         headers = {"Authorization": image_gen.pexels_api_key}
         url = f"https://api.pexels.com/v1/search?query={query}&per_page={count}"
         
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
         
         data = response.json()
         images = []
@@ -342,8 +314,6 @@ async def search_unsplash(query: str, count: int = 5) -> List[dict]:
     images = []
     
     try:
-        # Unsplash Source provides random images
-        # We'll generate multiple variations
         clean_query = query.replace(" ", ",")
         
         for i in range(count):

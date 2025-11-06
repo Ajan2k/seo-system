@@ -1,7 +1,9 @@
+# app/routes/generate_blog.py
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import os
-import requests
+import httpx
 import re
 from typing import List, Optional
 
@@ -9,15 +11,14 @@ from app.utils.search_trends import search_trending_topics, extract_keywords_fro
 from app.utils.seo_utils import (
     calculate_seo_score, suggest_improvements,
     generate_focus_keyphrase, generate_seo_title, generate_meta_description,
-    generate_slug, add_outbound_links, add_internal_links, ensure_keyphrase_in_intro,
+    generate_slug, add_outbound_links, ensure_keyphrase_in_intro,
     optimize_readability, ensure_keyphrase_in_headings, limit_keyphrase_density,
     fix_competing_links
 )
 from app.utils.image_api import ImageGenerator
-from app.database import Database
+from app.database import db
 
 router = APIRouter()
-db = Database()
 image_gen = ImageGenerator()
 
 
@@ -31,16 +32,17 @@ class BlogGenerateRequest(BaseModel):
 
 
 class GroqAPI:
-    """Groq API client for blog generation"""
+    """Async Groq API client for blog generation"""
 
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
         self.base_url = "https://api.groq.com/openai/v1/chat/completions"
+        self.client = httpx.AsyncClient(timeout=120.0)
 
         if not self.api_key:
             print("⚠️ WARNING: GROQ_API_KEY not found in environment variables")
 
-    def generate_blog(
+    async def generate_blog(
         self,
         topic: str,
         keywords: List[str],
@@ -59,7 +61,6 @@ class GroqAPI:
             if isinstance(kw, str):
                 clean_keywords.append(kw.strip())
             elif isinstance(kw, list):
-                # If somehow a list got in, flatten it
                 for item in kw:
                     if isinstance(item, str):
                         clean_keywords.append(item.strip())
@@ -67,11 +68,9 @@ class GroqAPI:
         primary_keyword = clean_keywords[0] if clean_keywords else topic.lower()
         secondary_keywords = clean_keywords[1:4] if len(clean_keywords) > 1 else []
 
-        # Ensure industries is a list
         if industries is None:
             industries = ["healthcare", "education", "e-commerce"]
 
-        # Create a more structured prompt
         prompt = f"""Write a comprehensive, SEO-optimized blog post about "{topic}".
 
 REQUIREMENTS:
@@ -169,7 +168,7 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
         try:
             print(f"🤖 Calling Groq API (Attempt {attempt})...")
 
-            response = requests.post(
+            response = await self.client.post(
                 self.base_url,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
@@ -190,14 +189,10 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
                     "temperature": 0.7,
                     "max_tokens": 4500,
                     "top_p": 0.9
-                },
-                timeout=120
+                }
             )
 
-            if response.status_code != 200:
-                print(f"❌ API returned status code: {response.status_code}")
-                print(f"Response: {response.text}")
-                raise Exception(f"Groq API error: {response.status_code}")
+            response.raise_for_status()
 
             result = response.json()
 
@@ -211,17 +206,20 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
 
             print(f"✅ Received {len(raw_content)} characters from API")
 
-            # Parse the content
             parsed = self._parse_blog_content(raw_content, topic, primary_keyword, clean_keywords, brand_name)
 
             return parsed
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             print("❌ API request timed out")
             raise HTTPException(status_code=504, detail="API request timed out")
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPStatusError as e:
+            print(f"❌ API returned status code: {e.response.status_code}")
+            print(f"Response: {e.response.text}")
+            raise HTTPException(status_code=500, detail=f"Groq API error: {e.response.status_code}")
+        except httpx.RequestError as e:
             print(f"❌ API request error: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"API connection error: {str(e)}")
         except Exception as e:
             print(f"❌ Error: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -229,29 +227,21 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
     def _parse_blog_content(self, raw_content: str, topic: str, primary_keyword: str,
                             all_keywords: List[str], brand_name: str) -> dict:
         """Parse and validate blog content"""
-
         content = raw_content.strip()
-
-        # Extract title (first H1)
         title = topic
         title_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
         if title_match:
             title = title_match.group(1).strip()
 
-        # Ensure title has keyword and is optimal length
         if primary_keyword.lower() not in title.lower():
             title = f"{title}: Complete {primary_keyword.title()} Guide"
 
-        # Generate meta description from first paragraph
         meta_description = self._extract_meta_description(content, primary_keyword)
-
-        # Ensure content has proper structure
         blog_content = content
+        
         if not re.search(r'^##\s+', content, re.MULTILINE):
-            # Content lacks structure, add it
             blog_content = self._add_structure(content, topic, primary_keyword, all_keywords, brand_name)
 
-        # Validate we have good content
         word_count = len(blog_content.split())
         if word_count < 800:
             print(f"⚠️ Content too short ({word_count} words), enhancing...")
@@ -268,8 +258,6 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
 
     def _extract_meta_description(self, content: str, keyword: str) -> str:
         """Extract and optimize meta description"""
-
-        # Find first meaningful paragraph (not a heading)
         lines = content.split('\n')
         first_para = ""
 
@@ -279,14 +267,11 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
                 first_para = clean_line
                 break
 
-        # Clean and format
         meta = re.sub(r'[*_`\[\]]', '', first_para)
 
-        # Ensure keyword is included
         if keyword.lower() not in meta.lower():
             meta = f"Discover {keyword}: {meta}"
 
-        # Optimize length
         if len(meta) > 160:
             meta = meta[:157] + "..."
         elif len(meta) < 140:
@@ -299,10 +284,8 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
     def _enhance_content(self, content: str, topic: str, keyword: str,
                          keywords: List[str], brand: str) -> str:
         """Enhance short content to meet word count requirements"""
-
         enhanced = content
 
-        # Add benefits section if missing
         if "benefit" not in content.lower():
             enhanced += f"""
 
@@ -321,7 +304,6 @@ Implementing {keyword} solutions offers numerous advantages for organizations:
 {brand} has helped organizations across industries achieve these benefits and more.
 """
 
-        # Add implementation section if missing
         if "implementation" not in content.lower() and "how to" not in content.lower():
             enhanced += f"""
 
@@ -357,7 +339,6 @@ Implementing {keyword} solutions offers numerous advantages for organizations:
 {brand} provides expert guidance throughout every phase of implementation.
 """
 
-        # Add case studies if missing
         if "case study" not in content.lower() and "example" not in content.lower():
             enhanced += f"""
 
@@ -385,7 +366,6 @@ A leading e-commerce platform used {keyword} to boost performance:
 - 65% reduction in cart abandonment
 """
 
-        # Add best practices if missing
         if "best practice" not in content.lower():
             enhanced += f"""
 
@@ -429,18 +409,12 @@ A leading e-commerce platform used {keyword} to boost performance:
     def _add_structure(self, content: str, topic: str, keyword: str,
                        keywords: List[str], brand: str) -> str:
         """Add proper heading structure to unstructured content"""
-
-        # Start with H1
         structured = f"# {topic}\n\n"
-
-        # Split content into paragraphs
         paragraphs = [p.strip() for p in content.split('\n\n') if p.strip() and not p.strip().startswith('#')]
 
         if len(paragraphs) < 3:
-            # Generate complete structured content
             return self._generate_complete_article(topic, keyword, keywords, brand)
 
-        # Add structured sections
         sections = [
             ("## Introduction", paragraphs[0] if paragraphs else f"Understanding {keyword} is essential in today's digital landscape."),
             (f"## What is {keyword}?", paragraphs[1] if len(paragraphs) > 1 else f"{keyword} represents a comprehensive approach to solving modern challenges."),
@@ -484,7 +458,6 @@ Online retailers use {keyword} to boost sales and customer satisfaction.
     def _generate_complete_article(self, topic: str, keyword: str,
                                    keywords: List[str], brand: str) -> str:
         """Generate a complete article when API content is insufficient"""
-
         secondary_kw = keywords[1] if len(keywords) > 1 else f"{keyword} solutions"
 
         article = f"""# {topic}
@@ -557,7 +530,6 @@ Online retailers achieve 55% conversion rate improvements with {keyword}.
 
 Contact {brand} today to learn how {keyword} can drive your success.
 """
-
         return article
 
 
@@ -578,7 +550,6 @@ def clean_keywords(keywords):
                 if isinstance(item, str):
                     clean.append(item.strip().lower())
 
-    # Remove duplicates while preserving order
     seen = set()
     unique = []
     for k in clean:
@@ -614,9 +585,8 @@ async def generate_blog(request: BlogGenerateRequest):
         print(f"🎯 Focus Keyphrase: '{focus_keyphrase}'")
 
         # Step 3: Check if keyphrase already used
-        if request.website_id and db.is_keyphrase_used(focus_keyphrase, request.website_id):
+        if request.website_id and await db.is_keyphrase_used(focus_keyphrase, request.website_id):
             print(f"⚠️ Keyphrase '{focus_keyphrase}' already used, generating alternative...")
-            # Modify the keyphrase slightly
             focus_keyphrase = f"{focus_keyphrase} {request.category}"
 
         print(f"📝 Topic: {topic}")
@@ -633,23 +603,20 @@ async def generate_blog(request: BlogGenerateRequest):
                 print(f"🔄 Generation Attempt {attempt + 1}/{max_attempts}")
                 print(f"{'─'*60}\n")
 
-                # Generate blog
-                blog_data = groq_api.generate_blog(
+                blog_data = await groq_api.generate_blog(
                     topic=topic,
-                    keywords=[focus_keyphrase] + keywords,  # Focus keyphrase first
+                    keywords=[focus_keyphrase] + keywords,
                     brand_name=request.brand_name,
                     industries=request.industries,
                     attempt=attempt + 1
                 )
 
-                # Validate content
                 if not blog_data.get('content') or len(blog_data['content'].strip()) < 500:
                     print(f"❌ Content too short or empty, retrying...\n")
                     continue
 
-                # After generating content from Groq API
+                # Content optimization
                 try:
-                    # 1. FIRST: Optimize readability
                     blog_data['content'] = optimize_readability(
                         content=blog_data['content'],
                         title=blog_data['title'],
@@ -661,7 +628,6 @@ async def generate_blog(request: BlogGenerateRequest):
                         subheading_gap=250
                     )
                     
-                    # 2. SECOND: Ensure keyphrase in intro
                     blog_data['content'] = ensure_keyphrase_in_intro(
                         content=blog_data['content'],
                         focus_keyphrase=blog_data.get('focus_keyphrase', ''),
@@ -669,32 +635,28 @@ async def generate_blog(request: BlogGenerateRequest):
                         bold=True
                     )
                     
-                    # 3. THIRD: Ensure keyphrase in headings
                     blog_data['content'] = ensure_keyphrase_in_headings(
                         content=blog_data['content'],
                         keyphrase=blog_data.get('focus_keyphrase', ''),
                         synonyms=blog_data.get('synonyms', []),
-                        target_ratio=0.5,  # 50% of headings
+                        target_ratio=0.5,
                         max_changes=3
                     )
                     
-                    # 4. FOURTH: LIMIT KEYPHRASE DENSITY ← ADD THIS!
                     blog_data['content'] = limit_keyphrase_density(
                         content=blog_data['content'],
                         keyphrase=blog_data.get('focus_keyphrase', ''),
                         target_min=1.0,
                         target_max=1.6,
-                        hard_cap=38  # Safety margin below Yoast's limit
+                        hard_cap=38
                     )
                     
-                    # 5. FIFTH: Fix competing links
                     blog_data['content'] = fix_competing_links(
                         content=blog_data['content'],
                         keyphrase=blog_data.get('focus_keyphrase', ''),
                         synonyms=blog_data.get('synonyms', [])
                     )
                     
-                    # 6. FINALLY: Add outbound links
                     blog_data['content'] = add_outbound_links(
                         content=blog_data['content'],
                         keywords=keywords,
@@ -705,29 +667,15 @@ async def generate_blog(request: BlogGenerateRequest):
 
                 except Exception as e:
                     print(f"❌ Error in content optimization: {e}")
-                    # Continue with unoptimized content
 
-                
-
-                # Re-ensure keyphrase in intro if edits moved it
                 blog_data['content'] = ensure_keyphrase_in_intro(blog_data['content'], focus_keyphrase)
 
-                # Generate SEO title and meta description (strict 155 chars)
                 seo_title = generate_seo_title(blog_data['title'], focus_keyphrase)
                 blog_data['seo_title'] = seo_title
 
                 meta_description = generate_meta_description(blog_data['content'], focus_keyphrase, target_length=155)
                 blog_data['meta_description'] = meta_description
 
-                # Step 8: Generate SEO title
-                seo_title = generate_seo_title(blog_data['title'], focus_keyphrase)
-                blog_data['seo_title'] = seo_title
-
-                # Step 9: Generate optimized meta description
-                meta_description = generate_meta_description(blog_data['content'], focus_keyphrase)
-                blog_data['meta_description'] = meta_description
-
-                # Step 10: Generate slug with keyphrase
                 slug = generate_slug(blog_data['title'], focus_keyphrase)
                 blog_data['slug'] = slug
 
@@ -738,7 +686,6 @@ async def generate_blog(request: BlogGenerateRequest):
                 word_count = len(blog_data['content'].split())
                 print(f"📊 Word count: {word_count}")
 
-                # Calculate SEO score
                 seo_details = calculate_seo_score(
                     title=seo_title,
                     content=blog_data['content'],
@@ -760,13 +707,11 @@ async def generate_blog(request: BlogGenerateRequest):
                 print(f"   ├─ Readability: {seo_details['readability_score']}")
                 print(f"   └─ Structure: {seo_details['structure_score']}\n")
 
-                # Track best version
                 if current_score > best_score:
                     best_score = current_score
                     best_post = {**blog_data, 'seo_details': seo_details, 'keywords': keywords, 'focus_keyphrase': focus_keyphrase}
                     print(f"✅ New best score: {current_score}/100\n")
 
-                # Check if target met
                 if current_score >= request.target_score:
                     print(f"🎉 Target score {request.target_score} achieved!\n")
                     break
@@ -777,6 +722,7 @@ async def generate_blog(request: BlogGenerateRequest):
                     raise
                 continue
 
+        # Check if we got any valid content after all attempts
         if not best_post:
             raise HTTPException(status_code=500, detail="Failed to generate content")
 
@@ -793,15 +739,15 @@ async def generate_blog(request: BlogGenerateRequest):
         # Step 12: Save to database with all SEO fields
         print("💾 Saving to database...")
 
-        post_id = db.add_post(
+        post_id = await db.add_post(
             title=final_post['title'],
-            slug=final_post.get('slug', ''),  # Add slug!
+            slug=final_post.get('slug', ''),
             content=final_post['content'],
             meta_description=final_post['meta_description'],
             keywords=','.join(keywords),
             category=request.category,
-            focus_keyphrase=focus_keyphrase,  # Critical!
-            seo_title=final_post['seo_title'],  # Critical!
+            focus_keyphrase=focus_keyphrase,
+            seo_title=final_post['seo_title'],
             website_id=request.website_id,
             image_url=image_url,
             seo_score=final_score
@@ -811,9 +757,6 @@ async def generate_blog(request: BlogGenerateRequest):
         print(f"   - Focus keyphrase: {focus_keyphrase}")
         print(f"   - SEO title: {final_post['seo_title']}")
         print(f"   - Slug: {final_post.get('slug', '')}")
-
-        # Track used keyphrase
-        db.add_used_keyphrase(focus_keyphrase, post_id, request.website_id)
 
         suggestions = suggest_improvements(final_post['seo_details'])
         ready_to_publish = final_score >= 80
@@ -859,11 +802,11 @@ async def get_trending_topics(category: str, count: int = 5):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/regenerate/{post_id}")  # noqa: E501
+@router.post("/regenerate/{post_id}")
 async def regenerate_for_better_seo(post_id: int):
     """Regenerate a post to achieve better SEO score"""
     try:
-        post = db.get_post(post_id)
+        post = await db.get_post(post_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
 
@@ -876,7 +819,6 @@ async def regenerate_for_better_seo(post_id: int):
                 'current_score': current_score
             }
 
-        # Regenerate
         keywords_str = post.get('keywords', '')
         keywords = [k.strip() for k in keywords_str.split(',') if k.strip()] if keywords_str else []
 
