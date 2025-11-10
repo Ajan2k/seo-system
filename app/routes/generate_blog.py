@@ -10,7 +10,7 @@ from typing import List, Optional
 from app.utils.search_trends import search_trending_topics, extract_keywords_from_topic
 from app.utils.seo_utils import (
     calculate_seo_score, suggest_improvements,
-    generate_focus_keyphrase, generate_seo_title, generate_meta_description,
+    generate_focus_keyphrase, generate_seo_title, generate_meta_description,validate_and_fix_meta_description,
     generate_slug, add_outbound_links, ensure_keyphrase_in_intro,
     optimize_readability, ensure_keyphrase_in_headings, limit_keyphrase_density,
     fix_competing_links
@@ -27,6 +27,7 @@ class BlogGenerateRequest(BaseModel):
     website_id: Optional[int] = None
     custom_topic: Optional[str] = None
     target_score: int = 80
+    focus_keyword: Optional[str] = None 
     brand_name: Optional[str] = "Infinitetechai"
     industries: Optional[List[str]] = ["healthcare", "education", "e-commerce", "real estate"]
 
@@ -580,9 +581,13 @@ async def generate_blog(request: BlogGenerateRequest):
 
         keywords = clean_keywords(keywords)[:7]
 
-        # Step 2: Generate focus keyphrase
-        focus_keyphrase = generate_focus_keyphrase(keywords, topic)
-        print(f"🎯 Focus Keyphrase: '{focus_keyphrase}'")
+        # Step 2: Generate or use provided focus keyphrase
+        if request.focus_keyword:  # <--- USE PROVIDED FOCUS KEYWORD
+            focus_keyphrase = request.focus_keyword.strip().lower()
+            print(f"🎯 Using provided Focus Keyphrase: '{focus_keyphrase}'")
+        else:
+            focus_keyphrase = generate_focus_keyphrase(keywords, topic)
+            print(f"🎯 Generated Focus Keyphrase: '{focus_keyphrase}'")
 
         # Step 3: Check if keyphrase already used
         if request.website_id and await db.is_keyphrase_used(focus_keyphrase, request.website_id):
@@ -673,8 +678,26 @@ async def generate_blog(request: BlogGenerateRequest):
                 seo_title = generate_seo_title(blog_data['title'], focus_keyphrase)
                 blog_data['seo_title'] = seo_title
 
+                
+
                 meta_description = generate_meta_description(blog_data['content'], focus_keyphrase, target_length=155)
+
+                # CRITICAL: Validate length before saving
+                if len(meta_description) > 156:
+                    print(f"❌ WARNING: Meta {len(meta_description)} chars, emergency truncating...")
+                    meta_description = meta_description[:153].rstrip('.,!?;:- ') + '...'
+
+                # Final verification
+                assert len(meta_description) <= 156, f"Meta STILL too long: {len(meta_description)} chars"
+
                 blog_data['meta_description'] = meta_description
+
+                print(f"\n✅ Meta Description Validated:")
+                print(f"   Length: {len(meta_description)}/156 chars")
+                print(f"   Content: '{meta_description}'")
+
+                print(f"✅ Final meta length: {len(meta_description)} chars")
+                print(f"   Content: '{meta_description}'")
 
                 slug = generate_slug(blog_data['title'], focus_keyphrase)
                 blog_data['slug'] = slug
@@ -739,24 +762,26 @@ async def generate_blog(request: BlogGenerateRequest):
         # Step 12: Save to database with all SEO fields
         print("💾 Saving to database...")
 
+        # Around line 380 in generate_blog.py
         post_id = await db.add_post(
             title=final_post['title'],
-            slug=final_post.get('slug', ''),
+            slug=final_post.get('slug', ''),  # ← This should now always be the focus keyphrase
             content=final_post['content'],
             meta_description=final_post['meta_description'],
             keywords=','.join(keywords),
             category=request.category,
-            focus_keyphrase=focus_keyphrase,
+            focus_keyphrase=focus_keyphrase,  # ← This matches the slug
             seo_title=final_post['seo_title'],
             website_id=request.website_id,
             image_url=image_url,
             seo_score=final_score
         )
 
-        print(f"✅ Post saved with ID {post_id}")
-        print(f"   - Focus keyphrase: {focus_keyphrase}")
-        print(f"   - SEO title: {final_post['seo_title']}")
-        print(f"   - Slug: {final_post.get('slug', '')}")
+        # Verify slug matches focus keyphrase
+        print(f"✅ Post saved with:")
+        print(f"   - Focus Keyphrase: '{focus_keyphrase}'")
+        print(f"   - Slug: '{final_post.get('slug', '')}'")
+        print(f"   - Match: {final_post.get('slug', '').replace('-', ' ') == focus_keyphrase.lower()}")
 
         suggestions = suggest_improvements(final_post['seo_details'])
         ready_to_publish = final_score >= 80

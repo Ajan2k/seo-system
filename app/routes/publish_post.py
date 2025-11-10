@@ -7,7 +7,7 @@ from app.utils.seo_utils import generate_slug
 import re
 from app.utils.seo_utils import generate_slug, optimize_readability, \
     ensure_keyphrase_in_headings, limit_keyphrase_density, fix_competing_links, \
-    generate_meta_description
+    generate_meta_description,validate_and_fix_meta_description
 
 router = APIRouter()
 cms_publisher = CMSPublisher()
@@ -51,13 +51,38 @@ async def publish_post(request: PublishRequest):
             keywords = [k.strip() for k in (post.get('keywords') or '').split(',') if k.strip()]
             focus_keyphrase = keywords[0] if keywords else post['title'].lower()
         
-        slug_val = post.get('slug') or generate_slug(post['title'], focus_keyphrase)
+        slug_val = post.get('slug')
+        if not slug_val or len(slug_val) < 3:
+            # Regenerate slug from focus keyphrase if missing or invalid
+            slug_val = generate_slug(post['title'], focus_keyphrase)
+            print(f"🔗 Regenerated slug from keyphrase: '{slug_val}'")
         seo_title_val = post.get('seo_title') or post['title']
         
         if focus_keyphrase and focus_keyphrase.lower() not in seo_title_val.lower():
             seo_title_val = f"{post['title']} – {focus_keyphrase.title()}"
 
+      
+        # Get meta description from post
         meta_desc_val = (post.get('meta_description') or '').strip()
+
+        # CRITICAL: Validate before publishing
+        if not meta_desc_val:
+            # Generate if missing
+            meta_desc_val = generate_meta_description(
+                post.get('content', ''), 
+                focus_keyphrase, 
+                target_length=155
+            )
+
+        # FORCE truncate if over limit (emergency safety)
+        if len(meta_desc_val) > 156:
+            print(f"⚠️ Meta {len(meta_desc_val)} chars before publish, truncating...")
+            meta_desc_val = meta_desc_val[:153].rstrip('.,!?;:- ') + '...'
+
+        # Final assertion
+        assert len(meta_desc_val) <= 156, f"Meta STILL {len(meta_desc_val)} chars before publish!"
+
+        print(f"🚀 Publishing with meta: {len(meta_desc_val)} chars - '{meta_desc_val}'")
         needs_md = len(meta_desc_val) < 120 or (focus_keyphrase and focus_keyphrase.lower() not in meta_desc_val.lower())
         
         if needs_md:

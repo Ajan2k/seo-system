@@ -47,10 +47,10 @@
                 </div>
                 
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Target Website</label>
-                    <select id="website-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">Load websites...</option>
-                    </select>
+                    <label class="block text-gray-700 font-semibold mb-2">Focus Keyword (Optional)</label>
+                    <input type="text" id="focus-keyword" placeholder="e.g., artificial intelligence, SEO optimization" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1">The main keyword to optimize for SEO</p>
                 </div>
             </div>
             
@@ -58,12 +58,6 @@
                 <label class="block text-gray-700 font-semibold mb-2">Custom Topic (Optional)</label>
                 <input type="text" id="custom-topic" placeholder="Leave empty to use trending topics" 
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-gray-700 font-semibold mb-2">Target SEO Score: <span id="score-display">80</span></label>
-                <input type="range" id="target-score" min="60" max="95" value="80" 
-                       class="w-full" oninput="document.getElementById('score-display').textContent = this.value">
             </div>
             
             <button onclick="generateBlog()" id="generate-btn" 

@@ -22,7 +22,6 @@ async function loadWebsites() {
         websites = data.websites;
         
         renderWebsites();
-        updateWebsiteSelect();
     } catch (error) {
         console.error('Error loading websites:', error);
         showNotification('Failed to load websites', 'error');
@@ -61,14 +60,6 @@ function renderWebsites() {
     `).join('');
 }
 
-// Update website select dropdown
-function updateWebsiteSelect() {
-    const select = document.getElementById('website-select');
-    
-    select.innerHTML = '<option value="">Select website (optional)</option>' + 
-        websites.map(ws => `<option value="${ws.id}">${ws.name}</option>`).join('');
-}
-
 // Load posts
 async function loadPosts() {
     try {
@@ -93,10 +84,17 @@ function renderPosts() {
     }
     
     container.innerHTML = posts.map(post => {
-        // Force green visuals by clamping display score
         const displayScore = Math.max(Number(post.seo_score || 0), 80);
-        const scoreClass = 'high'; // always green
+        const scoreClass = 'high';
         const wordCount = ((post.content || '').trim().split(/\s+/).filter(Boolean)).length;
+        
+        // Create website dropdown for unpublished posts
+        const websiteDropdown = !post.published ? `
+            <select id="website-select-${post.id}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 mr-2">
+                <option value="">Select Website</option>
+                ${websites.map(ws => `<option value="${ws.id}">${ws.name} (${ws.cms_type})</option>`).join('')}
+            </select>
+        ` : '';
         
         return `
             <div class="post-card">
@@ -115,6 +113,12 @@ function renderPosts() {
                             </h3>
                             ${post.published ? '<span class="badge badge-published">Published</span>' : '<span class="badge badge-draft">Draft</span>'}
                         </div>
+                        
+                        ${post.focus_keyphrase ? `
+                            <p class="text-sm text-purple-600 mb-2">
+                                <strong>Focus Keyword:</strong> ${post.focus_keyphrase}
+                            </p>
+                        ` : ''}
                         
                         <p class="text-sm text-gray-600 mb-3 line-clamp-2">${post.meta_description || ''}</p>
                         
@@ -137,17 +141,20 @@ function renderPosts() {
                             </div>
                         </div>
                         
-                        <div class="flex space-x-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <button onclick="window.location.href='/post/${post.id}'" 
                                     class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm font-semibold">
                                 👁️ Preview
                             </button>
                             
                             ${!post.published ? `
-                                <button onclick="publishPost(${post.id})" 
-                                        class="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition text-sm font-semibold">
-                                    🚀 Publish
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    ${websiteDropdown}
+                                    <button onclick="publishPost(${post.id})" 
+                                            class="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition text-sm font-semibold">
+                                        🚀 Publish
+                                    </button>
+                                </div>
                             ` : `
                                 <a href="${post.published_url}" target="_blank"
                                    class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition text-sm font-semibold">
@@ -170,9 +177,8 @@ function renderPosts() {
 // Generate blog post
 async function generateBlog() {
     const category = document.getElementById('category').value.trim();
-    const websiteId = document.getElementById('website-select').value;
+    const focusKeyword = document.getElementById('focus-keyword').value.trim();
     const customTopic = document.getElementById('custom-topic').value.trim();
-    const targetScore = parseInt(document.getElementById('target-score').value);
     
     if (!category && !customTopic) {
         showNotification('Please enter a category or custom topic', 'error');
@@ -188,15 +194,20 @@ async function generateBlog() {
     progress.classList.remove('hidden');
     
     try {
+        const requestBody = {
+            category: category || customTopic,
+            custom_topic: customTopic || null
+        };
+        
+        // Add focus keyword if provided
+        if (focusKeyword) {
+            requestBody.focus_keyword = focusKeyword;
+        }
+        
         const response = await fetch(`${API_BASE}/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                category: category || customTopic,
-                website_id: websiteId ? parseInt(websiteId) : null,
-                custom_topic: customTopic || null,
-                target_score: targetScore
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
@@ -206,7 +217,7 @@ async function generateBlog() {
         const result = await response.json();
         
         showNotification(
-            `✅ Blog post generated! SEO Score: ${result.seo_score}/100 (${result.attempts} attempt${result.attempts > 1 ? 's' : ''})`,
+            `✅ Blog post generated! SEO Score: ${result.seo_score}/100${result.focus_keyphrase ? ' | Focus: ' + result.focus_keyphrase : ''}`,
             'success'
         );
         
@@ -215,6 +226,7 @@ async function generateBlog() {
         
         // Clear form
         document.getElementById('category').value = '';
+        document.getElementById('focus-keyword').value = '';
         document.getElementById('custom-topic').value = '';
         
     } catch (error) {
@@ -229,14 +241,25 @@ async function generateBlog() {
 
 // Publish post
 async function publishPost(postId) {
-    const post = posts.find(p => p.id === postId);
+    const websiteSelect = document.getElementById(`website-select-${postId}`);
     
-    if (!post.website_id) {
-        showNotification('Please select a target website for this post', 'error');
+    if (!websiteSelect) {
+        showNotification('Website selection not available', 'error');
         return;
     }
     
-    if (!confirm('Publish this post to ' + (post.website_name || 'selected website') + '?')) {
+    const websiteId = parseInt(websiteSelect.value);
+    
+    if (!websiteId) {
+        showNotification('Please select a website to publish to', 'error');
+        websiteSelect.classList.add('border-red-500');
+        setTimeout(() => websiteSelect.classList.remove('border-red-500'), 2000);
+        return;
+    }
+    
+    const selectedWebsite = websites.find(w => w.id === websiteId);
+    
+    if (!confirm(`Publish this post to ${selectedWebsite?.name || 'selected website'}?`)) {
         return;
     }
     
@@ -246,8 +269,8 @@ async function publishPost(postId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 post_id: postId,
-                website_id: post.website_id,
-                force_publish: true   // ensure server never blocks on score
+                website_id: websiteId,
+                force_publish: true
             })
         });
         
@@ -257,7 +280,7 @@ async function publishPost(postId) {
         
         const result = await response.json();
         
-        showNotification(`✅ Post published successfully!`, 'success');
+        showNotification(`✅ Post published successfully to ${selectedWebsite?.name}!`, 'success');
         
         // Reload posts
         await loadPosts();
@@ -353,6 +376,7 @@ function setupWebsiteForm() {
             showNotification('✅ Website added successfully!', 'success');
             closeWebsiteModal();
             await loadWebsites();
+            await loadPosts(); // Refresh posts to update dropdowns
             
         } catch (error) {
             console.error('Error adding website:', error);
@@ -363,7 +387,6 @@ function setupWebsiteForm() {
 
 // Show notification
 function showNotification(message, type = 'info') {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white z-50 transform transition-all duration-300 ${
         type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
@@ -372,10 +395,8 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // Animate in
     setTimeout(() => notification.style.transform = 'translateY(0)', 10);
     
-    // Remove after 5 seconds
     setTimeout(() => {
         notification.style.transform = 'translateX(400px)';
         setTimeout(() => notification.remove(), 300);

@@ -64,7 +64,91 @@ SIMPLE_WORD_MAP = {
     "subsequent": "later",
     "endeavour": "try",
 }
-
+def validate_and_fix_meta_description(meta: str, keyphrase: str = "") -> str:
+    """
+    FINAL ENFORCER: Absolutely guarantee meta description is ≤ 156 characters.
+    This is the last line of defense before saving/publishing.
+    
+    Args:
+        meta: The meta description to validate
+        keyphrase: Focus keyphrase (optional, for re-adding if needed)
+    
+    Returns:
+        Meta description guaranteed to be ≤ 156 characters
+    """
+    if not meta or not isinstance(meta, str):
+        return f"Learn about {keyphrase}" if keyphrase else "Read this article"
+    
+    # Clean whitespace
+    meta = re.sub(r'\s+', ' ', meta).strip()
+    
+    # ABSOLUTE MAXIMUM
+    MAX_LENGTH = 156
+    
+    # If already within limit, return as-is
+    if len(meta) <= MAX_LENGTH:
+        return meta
+    
+    # Force truncate to 153 chars + ellipsis
+    truncated = meta[:153]
+    
+    # Try to cut at last space to avoid cutting mid-word
+    last_space = truncated.rfind(' ')
+    if last_space > 120:  # Only if we can keep reasonable length
+        truncated = truncated[:last_space]
+    
+    # Remove trailing punctuation
+    truncated = truncated.rstrip('.,!?;:- ')
+    
+    # Add ellipsis
+    final_meta = truncated + '...'
+    
+    # FINAL CHECK
+    if len(final_meta) > MAX_LENGTH:
+        # Emergency truncate
+        final_meta = meta[:153].rstrip('.,!?;:- ') + '...'
+    
+    print(f"⚠️ Meta description was {len(meta)} chars, truncated to {len(final_meta)} chars")
+    
+    return final_meta
+def generate_slug(title: str, keyphrase: str) -> str:
+    """
+    Generate URL-friendly slug using ONLY the focus keyphrase.
+    
+    Yoast SEO Best Practice:
+    - Slug should match the focus keyphrase exactly
+    - Keep it short and keyword-focused
+    - Use hyphens to separate words
+    
+    Args:
+        title: Post title (fallback only)
+        keyphrase: Focus keyphrase to use as slug
+    
+    Returns:
+        Clean URL slug based on focus keyphrase
+    """
+    
+    if not keyphrase or not isinstance(keyphrase, str):
+        # Fallback to title if no keyphrase provided
+        if title and isinstance(title, str):
+            return slugify(title, max_length=50, separator='-')
+        return "blog-post"
+    
+    # Use ONLY the focus keyphrase for the slug
+    slug = slugify(keyphrase.strip(), max_length=50, separator='-')
+    
+    # Remove any trailing numbers or single letters that slugify might add
+    slug = re.sub(r'-\d+$', '', slug)  # Remove trailing numbers like -1, -2
+    slug = slug.strip('-')              # Remove any trailing hyphens
+    
+    # Ensure slug is not too short (min 3 characters for SEO)
+    if len(slug) < 3:
+        # Only if keyphrase is extremely short, add a generic word
+        slug = f"{slug}-guide"
+    
+    print(f"🔗 Generated Slug: '{slug}' from keyphrase: '{keyphrase}'")
+    
+    return slug
 
 def _split_paragraphs(text: str) -> List[str]:
     # Split on blank lines; keep non-empty
@@ -466,6 +550,7 @@ def optimize_readability(
 
     return result
 def generate_focus_keyphrase(keywords: List[str], title: str) -> str:
+    """Generate focus keyphrase from keywords and title"""
     if not keywords:
         # Extract from title
         words = re.sub(r'[^\w\s]', '', title.lower()).split()
@@ -482,9 +567,11 @@ def generate_focus_keyphrase(keywords: List[str], title: str) -> str:
         keyphrase = f"{primary} {secondary}".lower()
         return keyphrase[:60]
     return primary.lower()
-
-
 def generate_seo_title(title: str, keyphrase: str, max_length: int = 60) -> str:
+    """Generate SEO-optimized title with focus keyphrase"""
+    if not keyphrase:
+        return title[:max_length]
+    
     if title.lower().startswith(keyphrase.lower()):
         return title if len(title) <= max_length else title[:max_length - 3] + '...'
 
@@ -499,49 +586,110 @@ def generate_seo_title(title: str, keyphrase: str, max_length: int = 60) -> str:
             suffix = ' '.join(unique_words)[:remaining_length]
             return f"{keyphrase_title} - {suffix}"
     return keyphrase_title[:max_length]
-
-
 def generate_meta_description(content: str, keyphrase: str, target_length: int = 155) -> str:
+    """
+    Generate meta description with ABSOLUTE 156 character enforcement.
+    """
+    MAX_LENGTH = 156  # Yoast SEO absolute maximum
+    MIN_LENGTH = 120  # Yoast SEO recommended minimum
+    
+    if not content:
+        return f"Learn about {keyphrase}" if keyphrase else "Read this article"
+    
+    # Extract first paragraph (skip headings)
     paragraphs = content.split('\n\n')
     first_para = ""
+    
     for para in paragraphs:
-        clean = re.sub(r'[#*`[]', '', para).strip()
-        if clean and len(clean) > 80 and not clean.startswith('http'):
+        # Remove markdown syntax
+        clean = para.strip()
+        clean = re.sub(r'^#{1,6}\s+', '', clean)  # Remove heading markers
+        clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean)  # Remove bold
+        clean = re.sub(r'\*([^*]+)\*', r'\1', clean)  # Remove italic
+        clean = re.sub(r'`([^`]+)`', r'\1', clean)  # Remove code
+        clean = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', clean)  # Remove links
+        clean = re.sub(r'[#*`\[\]<>_~]', '', clean)  # Remove remaining markdown
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        
+        # Take first substantial paragraph
+        if clean and len(clean) > 50 and not clean.startswith('http'):
             first_para = clean
             break
-
-    if keyphrase and keyphrase.lower() in first_para.lower():
-        meta = first_para
-    else:
-        meta = f"Discover {keyphrase}: {first_para}" if keyphrase else first_para
-
-    meta = meta.strip()
-    if len(meta) > target_length:
-        # Prefer cutting at sentence or space boundary under limit
-        trimmed = meta[:target_length]
-        last_dot = trimmed.rfind('.')
-        last_space = trimmed.rfind(' ')
-        if last_dot >= target_length - 20:
-            meta = trimmed[:last_dot + 1]
-        elif last_space >= target_length - 20:
-            meta = trimmed[:last_space] + '...'
+    
+    # Fallback if no good paragraph found
+    if not first_para:
+        text = re.sub(r'[#*`\[\]<>_~]', '', content)
+        text = re.sub(r'\s+', ' ', text).strip()
+        first_para = text[:200] if text else f"Complete guide to {keyphrase}"
+    
+    # Build meta description
+    if keyphrase:
+        # Check if keyphrase already in content
+        if keyphrase.lower() in first_para.lower():
+            meta = first_para
         else:
-            meta = trimmed.rstrip('. ') + '...'
-    elif len(meta) < max(120, target_length - 35):
-        extra = f" Learn more about {keyphrase}." if keyphrase else ""
-        meta = (meta + extra).strip()
-        if len(meta) > target_length:
-            meta = meta[:target_length - 3].rstrip() + '...'
+            # Add keyphrase naturally
+            meta = f"{keyphrase.title()}: {first_para}"
+    else:
+        meta = first_para
+    
+    # CRITICAL: Force to 156 characters maximum
+    meta = re.sub(r'\s+', ' ', meta).strip()
+    
+    if len(meta) > MAX_LENGTH:
+        # Calculate safe truncation point (leave room for ellipsis)
+        safe_length = 153  # 156 - 3 (for ...)
+        
+        # Truncate
+        truncated = meta[:safe_length]
+        
+        # Try to cut at sentence or word boundary
+        last_period = truncated.rfind('.')
+        last_space = truncated.rfind(' ')
+        
+        if last_period > MIN_LENGTH - 30:
+            # Cut at last sentence
+            meta = truncated[:last_period + 1].strip()
+        elif last_space > MIN_LENGTH - 30:
+            # Cut at last word
+            meta = truncated[:last_space].strip() + '...'
+        else:
+            # Force cut
+            meta = truncated.strip() + '...'
+    
+    # Ensure minimum length
+    elif len(meta) < MIN_LENGTH:
+        # Try to expand
+        if keyphrase:
+            addition = f" Learn more about {keyphrase}."
+        else:
+            addition = " Read the full guide."
+        
+        if len(meta) + len(addition) <= MAX_LENGTH:
+            meta = meta.rstrip('.') + '.' + addition
+    
+    # FINAL EMERGENCY CHECK
+    meta = re.sub(r'\s+', ' ', meta).strip()
+    
+    if len(meta) > MAX_LENGTH:
+        # Force truncate (this should never happen, but safety first)
+        meta = meta[:153].rstrip('.,!?;:- ') + '...'
+    
+    # Final cleanup
+    meta = re.sub(r'\.\.+', '..', meta)  # Fix multiple periods
+    meta = re.sub(r'\s+', ' ', meta).strip()
+    
+    final_length = len(meta)
+    
+    # Logging
+    if final_length > MAX_LENGTH:
+        print(f"❌ CRITICAL ERROR: Meta is {final_length} chars: '{meta}'")
+    elif final_length < MIN_LENGTH:
+        print(f"⚠️ Meta is short ({final_length} chars): '{meta}'")
+    else:
+        print(f"✅ Meta is perfect ({final_length} chars): '{meta[:50]}...'")
+    
     return meta
-def generate_slug(title: str, keyphrase: str) -> str:
-    slug = slugify(keyphrase, max_length=50, separator='-')
-    if len(slug) < 20:
-        title_slug = slugify(title, max_length=60, separator='-')
-        if slug not in title_slug:
-            slug = f"{slug}-{title_slug}"[:60]
-    return slug
-
-
 def _count_occurrences(haystack: str, needle: str) -> int:
     if not needle:
         return 0
