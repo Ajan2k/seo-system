@@ -75,12 +75,12 @@ async def publish_post(request: PublishRequest):
             )
 
         # FORCE truncate if over limit (emergency safety)
-        if len(meta_desc_val) > 156:
+        if len(meta_desc_val) > 143:
             print(f"⚠️ Meta {len(meta_desc_val)} chars before publish, truncating...")
             meta_desc_val = meta_desc_val[:153].rstrip('.,!?;:- ') + '...'
 
         # Final assertion
-        assert len(meta_desc_val) <= 156, f"Meta STILL {len(meta_desc_val)} chars before publish!"
+        assert len(meta_desc_val) <= 143, f"Meta STILL {len(meta_desc_val)} chars before publish!"
 
         print(f"🚀 Publishing with meta: {len(meta_desc_val)} chars - '{meta_desc_val}'")
         needs_md = len(meta_desc_val) < 120 or (focus_keyphrase and focus_keyphrase.lower() not in meta_desc_val.lower())

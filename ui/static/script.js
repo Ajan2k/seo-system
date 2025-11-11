@@ -209,12 +209,15 @@ async function generateBlog() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
         });
-        
+
+        const bodyText = await response.text(); // Read response as text first
+
         if (!response.ok) {
-            throw new Error('Generation failed');
+            console.error('❌ Backend error body:', bodyText);
+            throw new Error(`Generation failed: ${bodyText}`);
         }
-        
-        const result = await response.json();
+
+        const result = JSON.parse(bodyText);
         
         showNotification(
             `✅ Blog post generated! SEO Score: ${result.seo_score}/100${result.focus_keyphrase ? ' | Focus: ' + result.focus_keyphrase : ''}`,

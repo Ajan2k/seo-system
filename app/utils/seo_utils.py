@@ -66,7 +66,7 @@ SIMPLE_WORD_MAP = {
 }
 def validate_and_fix_meta_description(meta: str, keyphrase: str = "") -> str:
     """
-    FINAL ENFORCER: Absolutely guarantee meta description is ≤ 156 characters.
+    FINAL ENFORCER: Absolutely guarantee meta description is ≤ 143 characters.
     This is the last line of defense before saving/publishing.
     
     Args:
@@ -74,7 +74,7 @@ def validate_and_fix_meta_description(meta: str, keyphrase: str = "") -> str:
         keyphrase: Focus keyphrase (optional, for re-adding if needed)
     
     Returns:
-        Meta description guaranteed to be ≤ 156 characters
+        Meta description guaranteed to be ≤ 143 characters
     """
     if not meta or not isinstance(meta, str):
         return f"Learn about {keyphrase}" if keyphrase else "Read this article"
@@ -83,7 +83,7 @@ def validate_and_fix_meta_description(meta: str, keyphrase: str = "") -> str:
     meta = re.sub(r'\s+', ' ', meta).strip()
     
     # ABSOLUTE MAXIMUM
-    MAX_LENGTH = 156
+    MAX_LENGTH = 143
     
     # If already within limit, return as-is
     if len(meta) <= MAX_LENGTH:
@@ -588,10 +588,10 @@ def generate_seo_title(title: str, keyphrase: str, max_length: int = 60) -> str:
     return keyphrase_title[:max_length]
 def generate_meta_description(content: str, keyphrase: str, target_length: int = 155) -> str:
     """
-    Generate meta description with ABSOLUTE 156 character enforcement.
+    Generate meta description with ABSOLUTE 143 character enforcement.
     """
-    MAX_LENGTH = 156  # Yoast SEO absolute maximum
-    MIN_LENGTH = 120  # Yoast SEO recommended minimum
+    MAX_LENGTH = 143  # Yoast SEO absolute maximum (was 150!)
+    MIN_LENGTH = 120  # Yoast recommended minimum
     
     if not content:
         return f"Learn about {keyphrase}" if keyphrase else "Read this article"
@@ -628,56 +628,52 @@ def generate_meta_description(content: str, keyphrase: str, target_length: int =
         if keyphrase.lower() in first_para.lower():
             meta = first_para
         else:
-            # Add keyphrase naturally
-            meta = f"{keyphrase.title()}: {first_para}"
+            # SMART prepending: only if there's room
+            prefix = f"{keyphrase.title()}: "
+            available = MAX_LENGTH - len(prefix) - 3  # room for "..."
+            
+            if len(first_para) <= available:
+                meta = prefix + first_para
+            else:
+                # Truncate first_para to fit
+                truncated = first_para[:available].rsplit(' ', 1)[0]  # cut at last word
+                meta = prefix + truncated + '...'
     else:
         meta = first_para
     
-    # CRITICAL: Force to 156 characters maximum
+    # Normalize spaces
     meta = re.sub(r'\s+', ' ', meta).strip()
     
+    # MANDATORY: Enforce MAX_LENGTH (143) - This ALWAYS runs
+    # MANDATORY: Enforce MAX_LENGTH (143) - This ALWAYS runs
     if len(meta) > MAX_LENGTH:
-        # Calculate safe truncation point (leave room for ellipsis)
-        safe_length = 153  # 156 - 3 (for ...)
-        
-        # Truncate
+        safe_length = MAX_LENGTH - 3  # room for "..."
         truncated = meta[:safe_length]
         
-        # Try to cut at sentence or word boundary
-        last_period = truncated.rfind('.')
+        # Try to cut at word boundary
         last_space = truncated.rfind(' ')
-        
-        if last_period > MIN_LENGTH - 30:
-            # Cut at last sentence
-            meta = truncated[:last_period + 1].strip()
-        elif last_space > MIN_LENGTH - 30:
-            # Cut at last word
-            meta = truncated[:last_space].strip() + '...'
+        if last_space > 120:  # MIN_LENGTH
+            meta = truncated[:last_space].rstrip('.,!?;:- ') + '...'
         else:
-            # Force cut
-            meta = truncated.strip() + '...'
+            meta = truncated.rstrip('.,!?;:- ') + '...'
     
-    # Ensure minimum length
-    elif len(meta) < MIN_LENGTH:
-        # Try to expand
-        if keyphrase:
-            addition = f" Learn more about {keyphrase}."
+    # Ensure minimum length (only if we have room to add)
+    if len(meta) < MIN_LENGTH and len(meta) < MAX_LENGTH - 20:
+        if keyphrase and keyphrase.lower() not in meta.lower():
+            addition = f" Learn about {keyphrase}."
         else:
-            addition = " Read the full guide."
+            addition = " Read more."
         
         if len(meta) + len(addition) <= MAX_LENGTH:
             meta = meta.rstrip('.') + '.' + addition
     
-    # FINAL EMERGENCY CHECK
-    meta = re.sub(r'\s+', ' ', meta).strip()
-    
-    if len(meta) > MAX_LENGTH:
-        # Force truncate (this should never happen, but safety first)
-        meta = meta[:153].rstrip('.,!?;:- ') + '...'
-    
     # Final cleanup
-    meta = re.sub(r'\.\.+', '..', meta)  # Fix multiple periods
+    meta = re.sub(r'\.{2,}', '..', meta)  # Fix multiple periods (was \.\.+)
     meta = re.sub(r'\s+', ' ', meta).strip()
+    
+    # ABSOLUTE FINAL SAFETY (should never trigger now, but just in case)
+    if len(meta) > MAX_LENGTH:
+        meta = meta[:MAX_LENGTH - 3].rstrip('.,!?;:- ') + '...'
     
     final_length = len(meta)
     

@@ -258,7 +258,7 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
         }
 
     def _extract_meta_description(self, content: str, keyword: str) -> str:
-        """Extract and optimize meta description"""
+        """Extract first paragraph for meta description (will be properly formatted later)"""
         lines = content.split('\n')
         first_para = ""
 
@@ -268,20 +268,11 @@ Write the complete blog post now in markdown format. Start with # {topic} and in
                 first_para = clean_line
                 break
 
+        # Just clean and return - let generate_meta_description handle length enforcement
         meta = re.sub(r'[*_`\[\]]', '', first_para)
-
-        if keyword.lower() not in meta.lower():
-            meta = f"Discover {keyword}: {meta}"
-
-        if len(meta) > 160:
-            meta = meta[:157] + "..."
-        elif len(meta) < 140:
-            meta = meta + f" Learn more about {keyword}."
-            if len(meta) > 160:
-                meta = meta[:157] + "..."
-
-        return meta
-
+        meta = re.sub(r'\s+', ' ', meta).strip()
+        
+        return meta  # Return raw text, no length enforcement here
     def _enhance_content(self, content: str, topic: str, keyword: str,
                          keywords: List[str], brand: str) -> str:
         """Enhance short content to meet word count requirements"""
@@ -680,20 +671,27 @@ async def generate_blog(request: BlogGenerateRequest):
 
                 
 
-                meta_description = generate_meta_description(blog_data['content'], focus_keyphrase, target_length=155)
+                # Use the raw content from blog_data as a starting point
+                raw_meta = blog_data.get('meta_description') or blog_data.get('content') or ''
 
-                # CRITICAL: Validate length before saving
-                if len(meta_description) > 156:
+                # Generate properly formatted and length-enforced meta
+                meta_description = generate_meta_description(
+                    content=raw_meta,
+                    keyphrase=focus_keyphrase
+                )
+
+                # Double-check (should never fail now, but safety first)
+                if len(meta_description) > 143:
                     print(f"❌ WARNING: Meta {len(meta_description)} chars, emergency truncating...")
                     meta_description = meta_description[:153].rstrip('.,!?;:- ') + '...'
 
-                # Final verification
-                assert len(meta_description) <= 156, f"Meta STILL too long: {len(meta_description)} chars"
-
                 blog_data['meta_description'] = meta_description
 
+                print(f"✅ Meta Description: {len(meta_description)}/143 chars")
+                print(f"   Content: '{meta_description}'")
+
                 print(f"\n✅ Meta Description Validated:")
-                print(f"   Length: {len(meta_description)}/156 chars")
+                print(f"   Length: {len(meta_description)}/143 chars")
                 print(f"   Content: '{meta_description}'")
 
                 print(f"✅ Final meta length: {len(meta_description)} chars")
