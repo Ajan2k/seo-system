@@ -1,17 +1,29 @@
-# create_tables_manual.py
+# scripts/2_create_tables.py
+"""
+Create database tables in data/blog_automation.db
+Usage: python scripts/2_create_tables.py
+"""
+
 import sqlite3
 import os
+import sys
+
+# Add project root to path
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 def create_tables():
-    """Manually create database tables"""
+    """Create database tables"""
     
-    db_path = 'data/blog_automation.db'
+    # Database path relative to project root
+    db_path = os.path.join(PROJECT_ROOT, 'data', 'blog_automation.db')
+    data_dir = os.path.join(PROJECT_ROOT, 'data')
     
-    if not os.path.exists('data'):
-        os.makedirs('data')
-        print("✅ Created 'data' directory")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        print(f"✅ Created directory: data/\n")
     
-    print(f"Creating tables in: {db_path}\n")
+    print(f"Creating tables in: data/blog_automation.db\n")
     
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -55,22 +67,32 @@ def create_tables():
     print("✅ Created 'posts' table")
     
     # Create indexes
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_posts_website_id 
-        ON posts(website_id)
-    ''')
-    
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_posts_published 
-        ON posts(published)
-    ''')
-    
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_posts_focus_keyphrase 
-        ON posts(focus_keyphrase)
-    ''')
-    
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_website_id ON posts(website_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(published)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_focus_keyphrase ON posts(focus_keyphrase)')
     print("✅ Created indexes")
+    
+    # Add trigger to prevent meta descriptions > 143 chars
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS check_meta_length_insert
+        BEFORE INSERT ON posts
+        FOR EACH ROW
+        WHEN LENGTH(NEW.meta_description) > 143
+        BEGIN
+            SELECT RAISE(ABORT, 'Meta description exceeds 143 characters');
+        END;
+    ''')
+    
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS check_meta_length_update
+        BEFORE UPDATE ON posts
+        FOR EACH ROW
+        WHEN LENGTH(NEW.meta_description) > 143
+        BEGIN
+            SELECT RAISE(ABORT, 'Meta description exceeds 143 characters');
+        END;
+    ''')
+    print("✅ Created database triggers (meta description length validation)")
     
     conn.commit()
     
@@ -92,6 +114,9 @@ def create_tables():
     
     print(f"{'='*60}\n")
     print("✅ Database initialization complete!")
+    print(f"\n💡 Database location: data/blog_automation.db")
+    print(f"💡 Next step: python scripts/3_check_database.py")
+    print()
     
     conn.close()
 
