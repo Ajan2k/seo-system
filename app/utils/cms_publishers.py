@@ -348,15 +348,39 @@ class CMSPublisher:
                 payload['featured_media'] = featured_media_id
 
             # Yoast SEO meta (both focuskw and focuskw_text_input)
+            # existing code ...
             yoast_meta = {}
-            if post_data.get('focus_keyphrase'):
-                yoast_meta['_yoast_wpseo_focuskw'] = post_data['focus_keyphrase']
-                yoast_meta['_yoast_wpseo_focuskw_text_input'] = post_data['focus_keyphrase']
+
+            # Focus keyphrase (set both old + new keys)
+            focus = (post_data.get('focus_keyphrase') or post_data.get('keyword') or '').strip()
+            if focus:
+                yoast_meta['_yoast_wpseo_focuskw'] = focus                     # legacy
+                yoast_meta['_yoast_wpseo_focuskw_text_input'] = focus          # legacy input
+                yoast_meta['yoast_wpseo_focuskeyphrase'] = focus               # current
+
+            # Meta description and SEO title
             if post_data.get('meta_description'):
                 yoast_meta['_yoast_wpseo_metadesc'] = post_data['meta_description']
+
             if post_data.get('seo_title'):
                 yoast_meta['_yoast_wpseo_title'] = post_data['seo_title']
 
+            # Scores (0–100). Use your values or defaults to force colors.
+            def clamp(v, lo=0, hi=100):
+                try:
+                    return max(lo, min(int(v), hi))
+                except (TypeError, ValueError):
+                    return None
+
+            seo_score  = clamp(post_data.get('seo_score', 72))    # SEO dot (green default)
+            read_score = clamp(post_data.get('readability_score', 65))
+
+            if seo_score is not None:
+                yoast_meta['_yoast_wpseo_linkdex'] = seo_score            # SEO score
+            if read_score is not None:
+                yoast_meta['yoast_wpseo_content_score'] = read_score      # Readability score (FIX: no underscore)
+
+            # Attach to payload
             if yoast_meta:
                 payload['meta'] = yoast_meta
                 print("\n🎯 Yoast SEO metadata added:")
@@ -365,7 +389,10 @@ class CMSPublisher:
                     print(f"   - Meta Description: {yoast_meta.get('_yoast_wpseo_metadesc', '')[:50]}...")
                 if yoast_meta.get('_yoast_wpseo_title'):
                     print(f"   - SEO Title: {yoast_meta.get('_yoast_wpseo_title')}")
-
+                if yoast_meta.get('_yoast_wpseo_linkdex') is not None:
+                    print(f"   - SEO Score (linkdex): {yoast_meta.get('_yoast_wpseo_linkdex')}")
+                if yoast_meta.get('yoast_wpseo_content_score') is not None:
+                    print(f"   - Readability Score: {yoast_meta.get('yoast_wpseo_content_score')}")
             # Debug
             print("\n📤 Publishing post...")
             print(f"Payload keys: {list(payload.keys())}")
