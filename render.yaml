@@ -1,9 +1,11 @@
 services:
   - type: web
     name: ai-blog-automation
-    runtime: python-3.11
+    runtime: python               # CHANGE 1: Use generic 'python' here
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION       # CHANGE 2: Add this environment variable
+        value: 3.11.9
       - key: GROQ_API_KEY
-        scope: run
+        sync: false               # 'sync: false' is the standard way to handle secrets in Blueprints
