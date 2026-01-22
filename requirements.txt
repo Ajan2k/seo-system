@@ -11,7 +11,7 @@ textstat==0.7.3
 python-slugify==8.0.1
 python-multipart==0.0.6
 PyJWT==2.8.0
-Pillow==10.2.0
+Pillow==9.5.0
 groq==0.3.0
 aiofiles==23.2.1
 httpx==0.25.2
