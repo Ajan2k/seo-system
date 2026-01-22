@@ -8,4 +8,4 @@ services:
       - key: PYTHON_VERSION       # CHANGE 2: Add this environment variable
         value: 3.11.9
       - key: GROQ_API_KEY
-           # 'sync: false' is the standard way to handle secrets in Blueprints
+        scope: run
