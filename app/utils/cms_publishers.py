@@ -173,7 +173,7 @@ class CMSPublisher:
             media_url = f"{api_url.rstrip('/')}/wp-json/wp/v2/media"
 
             files = {'file': (filename, img_response.content, content_type)}
-            headers = {'User-Agent': 'SEO-Publisher/1.0', 'Cache-Control': 'no-cache'}
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Cache-Control': 'no-cache'}
 
             media_response = self.session.post(media_url, auth=auth, files=files, headers=headers, timeout=60)
 
@@ -404,7 +404,7 @@ class CMSPublisher:
                 auth=auth,
                 json=payload,
                 timeout=60,
-                headers={'Content-Type': 'application/json', 'User-Agent': 'SEO-Publisher/1.0'}
+                headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
             )
 
             if response.status_code == 201:
