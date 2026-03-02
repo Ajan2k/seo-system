@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlogAI – {{ page_title }}</title>
+    <meta name="description"
+        content="Sign in to BlogAI to generate AI-powered SEO blog posts, manage content, and publish to WordPress.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/auth.css">
+</head>
+
+<body>
+
+    <!-- Background effects -->
+    <div class="auth-bg">
+        <div class="auth-orb auth-orb--1"></div>
+        <div class="auth-orb auth-orb--2"></div>
+    </div>
+
+    <div class="auth-container">
+
+        <!-- Logo -->
+        <a href="/" class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            BlogAI
+        </a>
+
+        <!-- Auth Card -->
+        <div class="auth-card">
+            <!-- Tab Toggle -->
+            <div class="auth-tabs">
+                <button class="auth-tab {{ 'active' if mode == 'login' }}" onclick="switchTab('login')"
+                    id="tab-login">Log In</button>
+                <button class="auth-tab {{ 'active' if mode == 'signup' }}" onclick="switchTab('signup')"
+                    id="tab-signup">Sign Up</button>
+            </div>
+
+            <!-- Error/Success Message -->
+            <div class="auth-message" id="auth-message"></div>
+
+            <!-- ═══ LOGIN PANEL ═══ -->
+            <div class="auth-panel {{ 'active' if mode == 'login' }}" id="panel-login">
+                <h2 class="auth-title">Welcome back</h2>
+                <p class="auth-subtitle">Log in to your BlogAI account to continue</p>
+
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="login-email">Email address</label>
+                        <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required
+                            autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="login-password">Password</label>
+                        <input type="password" id="login-password" class="form-input" placeholder="Enter your password"
+                            required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn-submit" id="login-btn">Log In</button>
+                </form>
+
+                <div class="auth-divider">or continue with</div>
+
+                <button class="social-btn" onclick="handleDemoLogin()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Continue with Demo Account
+                </button>
+            </div>
+
+            <!-- ═══ SIGNUP PANEL ═══ -->
+            <div class="auth-panel {{ 'active' if mode == 'signup' }}" id="panel-signup">
+                <h2 class="auth-title">Create your account</h2>
+                <p class="auth-subtitle">Start generating AI-powered blog posts today</p>
+
+                <form onsubmit="handleSignup(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="signup-first">First name</label>
+                            <input type="text" id="signup-first" class="form-input" placeholder="John" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="signup-last">Last name</label>
+                            <input type="text" id="signup-last" class="form-input" placeholder="Doe" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="signup-email">Email address</label>
+                        <input type="email" id="signup-email" class="form-input" placeholder="you@example.com" required
+                            autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="signup-password">Password</label>
+                        <input type="password" id="signup-password" class="form-input"
+                            placeholder="Create a strong password" required autocomplete="new-password"
+                            oninput="checkPasswordStrength(this.value)">
+                        <div class="pw-strength">
+                            <div class="pw-bar" id="pw1"></div>
+                            <div class="pw-bar" id="pw2"></div>
+                            <div class="pw-bar" id="pw3"></div>
+                            <div class="pw-bar" id="pw4"></div>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="agree-terms" required>
+                        <label for="agree-terms">I agree to the Terms of Service</label>
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="signup-btn">Create Account</button>
+                </form>
+
+                <div class="auth-divider">or continue with</div>
+
+                <button class="social-btn" onclick="handleDemoLogin()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Try Demo Account
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="auth-footer">
+            <a href="/">← Back to BlogAI</a>
+        </div>
+    </div>
+
+    <script>
+        // ── Tab switching ────────────────────────────────────────────────────────
+        function switchTab(mode) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-' + mode).classList.add('active');
+            document.getElementById('panel-' + mode).classList.add('active');
+
+            // Update URL without reload
+            history.replaceState(null, '', '/' + mode);
+
+            // Clear messages
+            const msg = document.getElementById('auth-message');
+            msg.className = 'auth-message';
+            msg.style.display = 'none';
+        }
+
+        // ── Password strength ────────────────────────────────────────────────────
+        function checkPasswordStrength(pw) {
+            const bars = [document.getElementById('pw1'), document.getElementById('pw2'),
+            document.getElementById('pw3'), document.getElementById('pw4')];
+
+            // Reset
+            bars.forEach(b => b.className = 'pw-bar');
+
+            if (!pw) return;
+
+            let score = 0;
+            if (pw.length >= 6) score++;
+            if (pw.length >= 10) score++;
+            if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+            if (/\d/.test(pw)) score++;
+            if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+            const level = score <= 2 ? 'weak' : score <= 3 ? 'medium' : 'strong';
+            const fill = score <= 2 ? 1 : score <= 3 ? 2 : score <= 4 ? 3 : 4;
+
+            for (let i = 0; i < fill; i++) {
+                bars[i].classList.add(level);
+            }
+        }
+
+        // ── Show message ─────────────────────────────────────────────────────────
+        function showMessage(text, type = 'error') {
+            const msg = document.getElementById('auth-message');
+            msg.textContent = text;
+            msg.className = 'auth-message ' + type;
+            msg.style.display = 'block';
+        }
+
+        // ── Login handler ────────────────────────────────────────────────────────
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            btn.textContent = 'Logging in...';
+            btn.disabled = true;
+
+            try {
+                const resp = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    // Store token
+                    localStorage.setItem('blogai_token', data.token);
+                    localStorage.setItem('blogai_user', JSON.stringify(data.user));
+                    showMessage('Login successful! Redirecting...', 'success');
+                    setTimeout(() => { window.location.href = '/dashboard'; }, 800);
+                } else {
+                    showMessage(data.detail || data.message || 'Invalid email or password');
+                }
+            } catch (err) {
+                showMessage('Connection error. Please try again.');
+            }
+
+            btn.textContent = 'Log In';
+            btn.disabled = false;
+        }
+
+        // ── Signup handler ───────────────────────────────────────────────────────
+        async function handleSignup(e) {
+            e.preventDefault();
+            const btn = document.getElementById('signup-btn');
+            const first = document.getElementById('signup-first').value;
+            const last = document.getElementById('signup-last').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+
+            if (password.length < 6) {
+                showMessage('Password must be at least 6 characters');
+                return;
+            }
+
+            btn.textContent = 'Creating account...';
+            btn.disabled = true;
+
+            try {
+                const resp = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ first_name: first, last_name: last, email, password })
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    localStorage.setItem('blogai_token', data.token);
+                    localStorage.setItem('blogai_user', JSON.stringify(data.user));
+                    showMessage('Account created! Redirecting...', 'success');
+                    setTimeout(() => { window.location.href = '/dashboard'; }, 800);
+                } else {
+                    showMessage(data.detail || data.message || 'Signup failed. Try again.');
+                }
+            } catch (err) {
+                showMessage('Connection error. Please try again.');
+            }
+
+            btn.textContent = 'Create Account';
+            btn.disabled = false;
+        }
+
+        // ── Demo login ───────────────────────────────────────────────────────────
+        function handleDemoLogin() {
+            localStorage.setItem('blogai_token', 'demo-token');
+            localStorage.setItem('blogai_user', JSON.stringify({
+                name: 'Demo User',
+                email: 'demo@blogai.com',
+                credits: 10,
+                plan: 'starter'
+            }));
+            showMessage('Demo login successful! Redirecting...', 'success');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 800);
+        }
+    </script>
+</body>
+
+</html>

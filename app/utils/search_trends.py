@@ -19,8 +19,8 @@ def search_trending_topics(category: str, count: int = 5, exclude_topics: List[s
     # Normalize excluded topics for comparison
     excluded_normalized = {normalize_topic(t) for t in exclude_topics if t}
     
-    print(f"🔍 Searching for topics in category: {category}")
-    print(f"📋 Excluding {len(excluded_normalized)} previously used topics")
+    print(f"[search] Searching for topics in category: {category}")
+    print(f"[search] Excluding {len(excluded_normalized)} previously used topics")
     
     def add_title(title: str):
         if not title:
@@ -44,7 +44,7 @@ def search_trending_topics(category: str, count: int = 5, exclude_topics: List[s
     serpapi_key = os.getenv("SERPAPI_API_KEY")
     if serpapi_key and len(topics) < count * 3:
         try:
-            print("🔎 Trying SerpAPI...")
+            print("[search] Trying SerpAPI...")
             params_news = {
                 "engine": "google_news",
                 "q": category,
@@ -73,26 +73,26 @@ def search_trending_topics(category: str, count: int = 5, exclude_topics: List[s
             for item in data2.get("organic_results", []) or []:
                 add_title(item.get("title"))
             
-            print(f"✅ Found {len(topics)} topics from SerpAPI")
+            print(f"[search] Found {len(topics)} topics from SerpAPI")
         except Exception as e:
-            print(f"⚠️ SerpAPI error: {e}")
+            print(f"[search] SerpAPI error: {e}")
     
     # Method 1: Google News RSS fallback
     if len(topics) < count * 3:
         try:
-            print("🔎 Trying Google News RSS...")
+            print("[search] Trying Google News RSS...")
             rss_url = f"https://news.google.com/rss/search?q={category.replace(' ', '+')}&hl=en-US&gl=US&ceid=US:en"
             feed = feedparser.parse(rss_url)
             for entry in feed.entries:
                 add_title(getattr(entry, "title", ""))
-            print(f"✅ Total topics now: {len(topics)}")
+            print(f"[search] Total topics now: {len(topics)}")
         except Exception as e:
-            print(f"⚠️ Google News RSS error: {e}")
+            print(f"[search] Google News RSS error: {e}")
     
     # Method 2: DuckDuckGo fallback
     if len(topics) < count * 3:
         try:
-            print("🔎 Trying DuckDuckGo...")
+            print("[search] Trying DuckDuckGo...")
             ddg_url = "https://api.duckduckgo.com/"
             params = {"q": f"{category} latest", "format": "json"}
             r = session.get(ddg_url, params=params, timeout=5)
@@ -101,9 +101,9 @@ def search_trending_topics(category: str, count: int = 5, exclude_topics: List[s
             for topic in data.get("RelatedTopics", []) or []:
                 if isinstance(topic, dict) and topic.get("Text"):
                     add_title(topic["Text"].split(" - ")[0])
-            print(f"✅ Total topics now: {len(topics)}")
+            print(f"[search] Total topics now: {len(topics)}")
         except Exception as e:
-            print(f"⚠️ DuckDuckGo error: {e}")
+            print(f"[search] DuckDuckGo error: {e}")
     
     # Generate unique variations
     print(f"🎲 Generating unique topic variations...")
@@ -111,7 +111,7 @@ def search_trending_topics(category: str, count: int = 5, exclude_topics: List[s
     for variation in variations:
         add_title(variation)
     
-    print(f"✅ Total unique topics found: {len(topics)}")
+    print(f"[search] Total unique topics found: {len(topics)}")
     
     # Shuffle to randomize selection
     random.shuffle(topics)

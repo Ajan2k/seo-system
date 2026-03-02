@@ -1,25 +1,36 @@
+# ── Core Framework ────────────────────────────────────────────
 fastapi==0.109.0
-uvicorn==0.27.0
-python-dotenv==1.0.0
-requests==2.31.0
-beautifulsoup4==4.12.3
-pydantic==2.5.3
-jinja2==3.1.3
-aiosqlite==0.19.0
-feedparser==6.0.10
-textstat==0.7.3
-python-slugify==8.0.1
-python-multipart==0.0.6
-PyJWT==2.8.0
-Pillow==9.5.0
-groq==0.3.0
-aiofiles==23.2.1
-httpx==0.25.2
+uvicorn[standard]==0.27.0
 gunicorn==21.2.0
 
+# ── Configuration & Environment ───────────────────────────────
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
 
+# ── Async Database ────────────────────────────────────────────
+aiosqlite==0.19.0
+aiofiles==23.2.1
 
+# ── HTTP Clients ──────────────────────────────────────────────
+httpx==0.25.2
+requests==2.31.0
 
+# ── Templating & Static Files ─────────────────────────────────
+jinja2==3.1.3
+python-multipart==0.0.6
 
+# ── Text & SEO Processing ─────────────────────────────────────
+beautifulsoup4==4.12.3
+textstat==0.7.3
+python-slugify==8.0.1
+feedparser==6.0.10
 
+# ── Image Processing ──────────────────────────────────────────
+Pillow==9.5.0
 
+# ── CMS Auth ─────────────────────────────────────────────────
+PyJWT==2.8.0
+
+# ── AI / Groq SDK ─────────────────────────────────────────────
+groq==0.3.0

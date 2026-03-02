@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlogAI – AI-Powered SEO Blog Generation Platform</title>
+    <meta name="description"
+        content="Generate Yoast-optimized blog posts in seconds. AI-powered content, SEO scoring, image generation, and one-click WordPress publishing.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/landing.css">
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     NAVBAR
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <nav class="navbar" id="navbar">
+        <div class="container">
+            <a href="/" class="nav-logo">
+                <div class="nav-logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                BlogAI
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+            </ul>
+            <div class="nav-actions">
+                <a href="/login" class="btn btn-ghost">Log In</a>
+                <a href="/signup" class="btn btn-primary">Sign Up Free</a>
+            </div>
+            <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     HERO SECTION
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="hero" id="hero">
+        <div class="hero-grid"></div>
+        <div class="hero-orb hero-orb--1"></div>
+        <div class="hero-orb hero-orb--2"></div>
+        <div class="hero-orb hero-orb--3"></div>
+
+        <div class="container hero-content">
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                Powered by LLaMA 3.3 &amp; FLUX AI
+            </div>
+
+            <h1>
+                Generate SEO-Optimized<br>
+                Blog Posts with <span class="gradient-text">AI Magic</span>
+            </h1>
+
+            <p class="hero-sub">
+                Create Yoast-perfect, publish-ready blog posts in 30 seconds.
+                AI-generated images, SEO scoring, and one-click WordPress publishing.
+            </p>
+
+            <div class="hero-cta">
+                <a href="/signup" class="btn btn-primary btn-xl">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Start Generating – Free
+                </a>
+                <a href="#how-it-works" class="btn btn-outline-light btn-xl">See How It Works</a>
+            </div>
+
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-value">85<span>+</span></div>
+                    <div class="hero-stat-label">Avg. SEO Score</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">30<span>s</span></div>
+                    <div class="hero-stat-label">Per Blog Post</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">100<span>%</span></div>
+                    <div class="hero-stat-label">Yoast Compatible</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     FEATURES
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Features</div>
+                <h2 class="section-title">Everything You Need to Dominate SEO</h2>
+                <p class="section-subtitle">From research to publishing, BlogAI handles the entire content pipeline so
+                    you can focus on growing your business.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--purple">🤖</div>
+                    <h3>AI Content Generation</h3>
+                    <p>LLaMA 3.3 generates in-depth, human-quality blog posts optimized for your target keywords and
+                        audience.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--green">📊</div>
+                    <h3>Real-Time SEO Scoring</h3>
+                    <p>Yoast-compatible analysis with keyword density, readability metrics, meta descriptions, and
+                        heading structure checks.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--blue">🎨</div>
+                    <h3>AI Image Generation</h3>
+                    <p>FLUX model generates unique, royalty-free featured images tailored to your blog topic — no stock
+                        photos needed.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--pink">🚀</div>
+                    <h3>One-Click Publishing</h3>
+                    <p>Publish directly to WordPress or Ghost with proper SEO metadata, categories, tags, and featured
+                        images.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--orange">🔍</div>
+                    <h3>Trend Discovery</h3>
+                    <p>Automatically discovers trending topics from Google News and SerpAPI to keep your content fresh
+                        and relevant.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--cyan">📈</div>
+                    <h3>Performance Tracking</h3>
+                    <p>Track SEO scores, word counts, publishing status, and content performance across all your
+                        websites.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     HOW IT WORKS
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">How It Works</div>
+                <h2 class="section-title">Blog Posts in 4 Simple Steps</h2>
+                <p class="section-subtitle">No writing experience needed. Just tell BlogAI your topic and let AI do the
+                    heavy lifting.</p>
+            </div>
+
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Enter Your Topic</h3>
+                    <p>Type a category, keyword, or let AI discover trending topics for you.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>AI Generates Content</h3>
+                    <p>LLaMA 3.3 writes a full blog post with proper headings, links, and structure.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Review &amp; Optimize</h3>
+                    <p>Check your SEO score, edit the content, and regenerate images if needed.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <h3>Publish Instantly</h3>
+                    <p>One click to publish to WordPress with all SEO metadata and featured image.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     PRICING
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Pricing</div>
+                <h2 class="section-title">Simple Credit-Based Pricing</h2>
+                <p class="section-subtitle">No subscriptions. Buy credits and use them whenever you need. 1 credit = 1
+                    blog post.</p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Starter: 10 Credits -->
+                <div class="price-card">
+                    <div class="price-card-header">
+                        <div class="price-name">Starter</div>
+                        <div class="price-credits">
+                            <span class="price-value">10</span>
+                            <span class="price-unit">credits</span>
+                        </div>
+                        <p class="price-desc">Perfect for trying out the platform</p>
+                        <div class="price-amount">
+                            <span class="currency">$</span>9
+                            <span class="per">/ one-time</span>
+                        </div>
+                    </div>
+                    <ul class="price-features">
+                        <li><span class="check">✓</span> 10 AI-generated blog posts</li>
+                        <li><span class="check">✓</span> SEO optimization &amp; scoring</li>
+                        <li><span class="check">✓</span> AI image generation (FLUX)</li>
+                        <li><span class="check">✓</span> WordPress publishing</li>
+                        <li><span class="check">✓</span> 1 website connection</li>
+                    </ul>
+                    <a href="/signup" class="btn btn-outline-light btn-lg price-cta">Get Started</a>
+                </div>
+
+                <!-- Pro: 50 Credits -->
+                <div class="price-card price-card--popular">
+                    <div class="popular-badge">Most Popular</div>
+                    <div class="price-card-header">
+                        <div class="price-name">Professional</div>
+                        <div class="price-credits">
+                            <span class="price-value">50</span>
+                            <span class="price-unit">credits</span>
+                        </div>
+                        <p class="price-desc">Best value for content marketers</p>
+                        <div class="price-amount">
+                            <span class="currency">$</span>39
+                            <span class="per">/ one-time</span>
+                        </div>
+                    </div>
+                    <ul class="price-features">
+                        <li><span class="check">✓</span> 50 AI-generated blog posts</li>
+                        <li><span class="check">✓</span> SEO optimization &amp; scoring</li>
+                        <li><span class="check">✓</span> AI image generation (FLUX)</li>
+                        <li><span class="check">✓</span> WordPress + Ghost publishing</li>
+                        <li><span class="check">✓</span> 5 website connections</li>
+                        <li><span class="check">✓</span> Priority image generation</li>
+                        <li><span class="check">✓</span> Trend discovery &amp; research</li>
+                    </ul>
+                    <a href="/signup" class="btn btn-primary btn-lg price-cta">Get Started</a>
+                </div>
+
+                <!-- Business: 100 Credits -->
+                <div class="price-card">
+                    <div class="price-card-header">
+                        <div class="price-name">Business</div>
+                        <div class="price-credits">
+                            <span class="price-value">100</span>
+                            <span class="price-unit">credits</span>
+                        </div>
+                        <p class="price-desc">For agencies &amp; high-volume teams</p>
+                        <div class="price-amount">
+                            <span class="currency">$</span>69
+                            <span class="per">/ one-time</span>
+                        </div>
+                    </div>
+                    <ul class="price-features">
+                        <li><span class="check">✓</span> 100 AI-generated blog posts</li>
+                        <li><span class="check">✓</span> SEO optimization &amp; scoring</li>
+                        <li><span class="check">✓</span> AI image generation (FLUX)</li>
+                        <li><span class="check">✓</span> WordPress + Ghost + Custom API</li>
+                        <li><span class="check">✓</span> Unlimited website connections</li>
+                        <li><span class="check">✓</span> Priority image generation</li>
+                        <li><span class="check">✓</span> Trend discovery &amp; research</li>
+                        <li><span class="check">✓</span> API access</li>
+                    </ul>
+                    <a href="/signup" class="btn btn-outline-light btn-lg price-cta">Get Started</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     CTA BANNER
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-card">
+                <h2>Ready to automate your blog content?</h2>
+                <p>Start generating SEO-optimized posts in seconds. No credit card required.</p>
+                <a href="/signup" class="btn btn-xl">Start Generating – Free</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-text">© 2026 BlogAI. Built with LLaMA 3.3, FLUX &amp; FastAPI.</div>
+                <ul class="footer-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="/docs" target="_blank">API Docs</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+     SCRIPTS
+     ═══════════════════════════════════════════════════════════════════════ -->
+    <script>
+        // Navbar scroll effect
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            navbar.classList.toggle('scrolled', window.scrollY > 40);
+        });
+
+        // Mouse-follow glow on hero
+        const hero = document.getElementById('hero');
+        hero.addEventListener('mousemove', (e) => {
+            const rect = hero.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            hero.style.setProperty('--mx', x + '%');
+            hero.style.setProperty('--my', y + '%');
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector(a.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Animate elements on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = 'fadeUp 0.7s var(--ease-out) both';
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.feature-card, .price-card, .step-card').forEach(el => {
+            el.style.opacity = '0';
+            observer.observe(el);
+        });
+    </script>
+</body>
+
+</html>

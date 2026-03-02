@@ -138,9 +138,27 @@ async def get_image_sources():
     """Get available image generation sources and their status"""
     try:
         sources = {
+            'huggingface': {
+                'name': 'HuggingFace (FLUX.1)',
+                'type': 'AI Generated',
+                'available': bool(image_gen.hf_api_key),
+                'requires_key': True,
+                'quality': 'Very High',
+                'speed': 'Medium (10-30s)',
+                'description': 'Open-source FLUX model via HuggingFace - generates unique AI images'
+            },
+            'pollinations': {
+                'name': 'Pollinations.ai (FLUX)',
+                'type': 'AI Generated',
+                'available': True,
+                'requires_key': False,
+                'quality': 'Very High',
+                'speed': 'Medium (10-30s)',
+                'description': 'Open-source FLUX model - backup, may have outages'
+            },
             'lexica': {
                 'name': 'Lexica.art',
-                'type': 'AI Generated',
+                'type': 'AI Image Search',
                 'available': True,
                 'requires_key': False,
                 'quality': 'High',
@@ -185,6 +203,8 @@ async def get_image_stats():
         posts_with_images = sum(1 for p in posts if p.get('image_url'))
         
         source_counts = {
+            'huggingface': 0,
+            'pollinations': 0,
             'lexica': 0,
             'pexels': 0,
             'unsplash': 0,
@@ -213,7 +233,11 @@ async def get_image_stats():
 
 async def generate_from_specific_source(source: str, prompt: str, keywords: Optional[List[str]] = None) -> Optional[str]:
     """Generate image from a specific source"""
-    if source == 'lexica':
+    if source == 'huggingface':
+        return image_gen.generate_huggingface(prompt)
+    elif source == 'pollinations':
+        return image_gen.generate_pollinations(prompt)
+    elif source == 'lexica':
         return image_gen.generate_lexica(prompt)
     elif source == 'pexels':
         search_query = f"{prompt} {' '.join(keywords[:3])}" if keywords else prompt
@@ -230,7 +254,11 @@ def detect_image_source(image_url: str) -> str:
     if not image_url:
         return 'none'
     
-    if 'lexica.art' in image_url:
+    if 'pollinations.ai' in image_url:
+        return 'pollinations'
+    elif '/data/images/' in image_url:
+        return 'huggingface'
+    elif 'lexica.art' in image_url:
         return 'lexica'
     elif 'pexels.com' in image_url:
         return 'pexels'

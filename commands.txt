@@ -1,3 +1,5 @@
 .venv/Scripts/activate
 
 python -m app.main
+
+uvicorn app.main:app --reload --port 8000

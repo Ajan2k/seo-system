@@ -1,3 +1,4 @@
+import os
 import requests
 from typing import Dict, Optional
 from urllib3.util.retry import Retry
@@ -146,45 +147,93 @@ class CMSPublisher:
         return html
 
     def _download_and_upload_image(self, image_url: str, api_url: str, auth: tuple) -> Optional[int]:
-        """Download image from URL and upload to WordPress; return media ID."""
+        """Download image from URL (or read from local disk) and upload to WordPress; return media ID."""
         try:
             if not image_url:
                 return None
-            print(f"📸 Downloading image from: {image_url}")
+            print(f"📸 Processing image: {image_url}")
 
             # Skip placeholders
             if 'placeholder.com' in image_url:
                 print("⚠️ Skipping placeholder image")
                 return None
 
-            # Download image
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            img_response = self.session.get(image_url, headers=headers, timeout=30, allow_redirects=True)
-            img_response.raise_for_status()
+            image_data = None
+            content_type = 'image/png'
+            filename = f'ai-image-{int(time.time())}.png'
 
-            content_type = img_response.headers.get('content-type', 'image/jpeg')
+            # ── Handle locally generated images (HuggingFace) ─────────────
+            # These have paths like "/data/images/ai_xxx.png" or "data/images/ai_xxx.png"
+            local_path = None
+            if image_url.startswith('/data/images/') or image_url.startswith('data/images/'):
+                # Strip leading slash to get relative path
+                local_path = image_url.lstrip('/')
+            elif os.path.isfile(image_url):
+                local_path = image_url
 
-            # Filename heuristic
-            filename = image_url.split('/')[-1].split('?')[0] or f'image-{int(time.time())}.jpg'
-            if '.' not in filename:
-                filename += '.jpg'
+            if local_path and os.path.isfile(local_path):
+                print(f"📂 Reading local image: {local_path}")
+                with open(local_path, 'rb') as f:
+                    image_data = f.read()
 
-            print(f"📤 Uploading to WordPress: {filename}")
+                filename = os.path.basename(local_path)
+                # Detect content type from extension
+                ext = os.path.splitext(filename)[1].lower()
+                content_type = {
+                    '.png': 'image/png',
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.gif': 'image/gif',
+                    '.webp': 'image/webp',
+                }.get(ext, 'image/png')
+
+                print(f"✅ Local image loaded: {len(image_data)} bytes")
+
+            else:
+                # ── Handle remote URLs (Pexels, Lexica, Pollinations, etc.) ─
+                if not image_url.startswith('http'):
+                    print(f"⚠️ Skipping non-HTTP, non-local image URL: {image_url}")
+                    return None
+
+                print(f"📥 Downloading remote image...")
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                img_response = self.session.get(image_url, headers=headers, timeout=30, allow_redirects=True)
+                img_response.raise_for_status()
+
+                image_data = img_response.content
+                content_type = img_response.headers.get('content-type', 'image/jpeg')
+
+                # Filename from URL
+                filename = image_url.split('/')[-1].split('?')[0] or f'image-{int(time.time())}.jpg'
+                if '.' not in filename:
+                    filename += '.jpg'
+
+            if not image_data or len(image_data) < 100:
+                print("⚠️ Image data is empty or too small, skipping")
+                return None
+
+            # ── Upload to WordPress media library ─────────────────────────
+            print(f"📤 Uploading to WordPress: {filename} ({len(image_data)} bytes)")
             media_url = f"{api_url.rstrip('/')}/wp-json/wp/v2/media"
 
-            files = {'file': (filename, img_response.content, content_type)}
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Cache-Control': 'no-cache'}
+            files = {'file': (filename, image_data, content_type)}
+            upload_headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Cache-Control': 'no-cache',
+            }
 
-            media_response = self.session.post(media_url, auth=auth, files=files, headers=headers, timeout=60)
+            media_response = self.session.post(media_url, auth=auth, files=files, headers=upload_headers, timeout=60)
 
             if media_response.status_code == 201:
                 media_data = media_response.json()
                 media_id = media_data['id']
-                print(f"✅ Image uploaded: ID {media_id}")
+                wp_image_url = media_data.get('source_url', '')
+                print(f"✅ Image uploaded to WordPress: ID {media_id}")
+                print(f"   WordPress URL: {wp_image_url}")
                 return media_id
 
             print(f"❌ Image upload failed: {media_response.status_code}")
-            print(f"Response: {media_response.text}")
+            print(f"Response: {media_response.text[:300]}")
             return None
 
         except Exception as e:
@@ -466,6 +515,23 @@ class CMSPublisher:
             print("\n❌ Publishing failed!")
             print(f"Status Code: {response.status_code}")
             print(f"Response: {response.text}")
+
+            if response.status_code == 401 or response.status_code == 403:
+                print("\n" + "=" * 60)
+                print("🔑 AUTHENTICATION / AUTHORIZATION ERROR")
+                print("=" * 60)
+                print(f"   Username used: '{auth[0]}'")
+                print(f"   API URL used:  '{api_url}'")
+                print(f"   Post endpoint: '{post_url}'")
+                print("\n   Common fixes:")
+                print("   1. Ensure you're using a WordPress APPLICATION PASSWORD")
+                print("      (NOT your regular login password)")
+                print("   2. Generate one at: WP Admin → Users → Profile → Application Passwords")
+                print("   3. The user must be an Administrator or Editor role")
+                print("   4. api_key format must be: 'username:application_password'")
+                print("   5. Check if a security plugin is blocking REST API access")
+                print("=" * 60)
+
             return None
 
         except requests.exceptions.RequestException as e:
