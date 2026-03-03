@@ -67,10 +67,19 @@ async def _ensure_users_table():
                 token TEXT,
                 credits INTEGER DEFAULT 5,
                 plan TEXT DEFAULT 'free',
+                is_admin INTEGER DEFAULT 0,
                 created_at REAL NOT NULL,
                 last_login REAL
             )
         """)
+        
+        # Inline column migrations for users
+        cursor = await conn.execute("PRAGMA table_info(users)")
+        rows = await cursor.fetchall()
+        existing_columns = {row[1] for row in rows}
+        if "is_admin" not in existing_columns:
+            await conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+            
         await conn.commit()
 
 
@@ -99,11 +108,13 @@ async def signup(req: SignupRequest):
         password_hash, salt = _hash_password(req.password)
         token = _generate_token()
 
+        is_admin_flag = 1 if req.email.lower() == "admin@infiniteseo.com" else 0
+
         # Insert user
         cursor = await conn.execute(
-            """INSERT INTO users (first_name, last_name, email, password_hash, password_salt, token, credits, plan, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (req.first_name, req.last_name, req.email.lower(), password_hash, salt, token, 5, "free", time.time())
+            """INSERT INTO users (first_name, last_name, email, password_hash, password_salt, token, credits, plan, is_admin, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (req.first_name, req.last_name, req.email.lower(), password_hash, salt, token, 5, "free", is_admin_flag, time.time())
         )
         await conn.commit()
         user_id = cursor.lastrowid
@@ -119,6 +130,7 @@ async def signup(req: SignupRequest):
             "email": req.email.lower(),
             "credits": 5,
             "plan": "free",
+            "is_admin": is_admin_flag,
         },
         "message": "Account created successfully! You have 5 free credits.",
     }
@@ -165,6 +177,7 @@ async def login(req: LoginRequest):
             "email": user["email"],
             "credits": user["credits"],
             "plan": user["plan"],
+            "is_admin": user["is_admin"],
         },
     }
 
@@ -178,7 +191,10 @@ async def get_current_user(request: Request):
     token = auth_header.replace("Bearer ", "").strip()
 
     # Demo token
-    if not token or token == "demo-token":
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized - missing token")
+        
+    if token == "demo-token":
         return {
             "success": True,
             "user": {
@@ -187,13 +203,14 @@ async def get_current_user(request: Request):
                 "email": "demo@blogai.com",
                 "credits": 10,
                 "plan": "starter",
+                "is_admin": 0,
             }
         }
 
     async with aiosqlite.connect(DB_PATH) as conn:
         conn.row_factory = aiosqlite.Row
         cursor = await conn.execute(
-            "SELECT id, first_name, last_name, email, credits, plan FROM users WHERE token = ?",
+            "SELECT id, first_name, last_name, email, credits, plan, is_admin FROM users WHERE token = ?",
             (token,)
         )
         user = await cursor.fetchone()
@@ -209,5 +226,22 @@ async def get_current_user(request: Request):
             "email": user["email"],
             "credits": user["credits"],
             "plan": user["plan"],
+            "is_admin": user["is_admin"],
         }
     }
+
+async def get_user_id(request: Request) -> int:
+    """Dependency to extract user_id from token."""
+    user_data = await get_current_user(request)
+    if not user_data or "user" not in user_data:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return user_data["user"]["id"]
+
+async def get_current_admin(request: Request) -> int:
+    """Dependency to extract admin user_id and verify admin privileges."""
+    user_data = await get_current_user(request)
+    if not user_data or "user" not in user_data:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if not user_data["user"].get("is_admin"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return user_data["user"]["id"]

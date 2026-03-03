@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "D:\ml\internship assignment\seo system\ai_blog_automation\trace.py", line 5, in <module>
+    import app.main
+  File "D:\ml\internship assignment\seo system\ai_blog_automation\app\main.py", line 54, in <module>
+    from app.routes import generate_blog, publish_post, websites, image_gen, seo_score, auth
+  File "D:\ml\internship assignment\seo system\ai_blog_automation\app\routes\__init__.py", line 1, in <module>
+    from . import generate_blog, publish_post, websites, image_gen, seo_score
+  File "D:\ml\internship assignment\seo system\ai_blog_automation\app\routes\generate_blog.py", line 27, in <module>
+    from app.utils.seo_utils import (
+ImportError: cannot import name 'LIMIT_SCORE' from 'app.utils.seo_utils' (D:\ml\internship assignment\seo system\ai_blog_automation\app\utils\seo_utils.py)

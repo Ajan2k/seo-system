@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfiniteSEO – Admin Dashboard</title>
+    <meta name="description" content="InfiniteSEO System Administration Dashboard.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                </svg>
+            </div>
+            <span class="logo-text">InfiniteAdmin</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#overview-section" class="nav-item active" id="nav-overview" onclick="setActiveNav(this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Overview
+            </a>
+            <a href="#users-section" class="nav-item" id="nav-users" onclick="setActiveNav(this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Users
+                <span class="nav-badge" id="nav-users-count">0</span>
+            </a>
+            <a href="#posts-section" class="nav-item" id="nav-posts" onclick="setActiveNav(this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Global Posts
+                <span class="nav-badge" id="nav-posts-count">0</span>
+            </a>
+            <a href="/" class="nav-item" style="opacity:0.7">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Exit to User App
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="version-tag" style="background:var(--danger);color:white;border:none">ADMIN_MODE</span>
+        </div>
+    </aside>
+
+    <main class="main-content" id="main-content">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <h1 class="page-title">SuperAdmin Dashboard</h1>
+            </div>
+            <div class="topbar-right">
+                <span style="font-size:0.8rem;color:#9B9BC0;">System Status: <span
+                        style="color:var(--success)">Online</span></span>
+            </div>
+        </header>
+
+        <!-- Stats Row -->
+        <section class="stats-grid" id="overview-section">
+            <div class="stat-card">
+                <div class="stat-icon stat-icon--blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-value" id="stat-total-users">0</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon--purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-value" id="stat-total-posts">0</div>
+                    <div class="stat-label">Global Posts Generated</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon stat-icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-value" id="stat-total-websites">0</div>
+                    <div class="stat-label">Total Connected CMS</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Users Section -->
+        <section class="card" id="users-section">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon card-icon--blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </div>
+                    Registered Users
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;text-align:left;border-collapse:collapse;margin:1rem 0;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);color:#9B9BC0;">
+                            <th style="padding:1rem;">ID</th>
+                            <th style="padding:1rem;">Name</th>
+                            <th style="padding:1rem;">Email</th>
+                            <th style="padding:1rem;">Credits</th>
+                            <th style="padding:1rem;">Posts</th>
+                            <th style="padding:1rem;">Websites</th>
+                            <th style="padding:1rem;">Role</th>
+                            <th style="padding:1rem;">Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Posts Section -->
+        <section class="card" id="posts-section">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon card-icon--purple">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    Global Ecosystem Posts
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;text-align:left;border-collapse:collapse;margin:1rem 0;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);color:#9B9BC0;">
+                            <th style="padding:1rem;">Title</th>
+                            <th style="padding:1rem;">User</th>
+                            <th style="padding:1rem;">Category</th>
+                            <th style="padding:1rem;">Website</th>
+                            <th style="padding:1rem;">SEO</th>
+                            <th style="padding:1rem;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="posts-table-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ─── Toast Notifications ──────────────────────────────────────────────── -->
+    <div id="toast-container" aria-live="polite"></div>
+
+    <script>
+        // Check Authentication and Admin Status
+        (function () {
+            const token = localStorage.getItem('blogai_token');
+            const user = JSON.parse(localStorage.getItem('blogai_user') || '{}');
+
+            if (!token) {
+                window.location.href = '/admin';
+                return;
+            }
+            if (!user.is_admin) {
+                alert("Forbidden: You do not have SuperAdmin privileges.");
+                window.location.href = '/dashboard';
+                return;
+            }
+
+            const sidebarFooter = document.querySelector('.sidebar-footer');
+            if (sidebarFooter && user.name) {
+                const userInfo = document.createElement('div');
+                userInfo.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:rgba(214,48,49,0.1);';
+                userInfo.innerHTML = `
+                    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ff7675,#d63031);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">${user.name ? user.name[0].toUpperCase() : 'A'}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:0.78rem;font-weight:600;color:#f0f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${user.name || 'Admin'}</div>
+                        <div style="font-size:0.68rem;color:#ff7675;">SuperAdmin</div>
+                    </div>
+                    <button onclick="handleLogout()" title="Log out" style="background:none;border:none;cursor:pointer;color:#9B9BC0;padding:4px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    </button>
+                `;
+                sidebarFooter.insertBefore(userInfo, sidebarFooter.firstChild);
+            }
+        })();
+
+        function handleLogout() {
+            localStorage.removeItem('blogai_token');
+            localStorage.removeItem('blogai_user');
+            window.location.href = '/';
+        }
+
+        function setActiveNav(el) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+        }
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        async function fetchWithAuth(url, options = {}) {
+            const token = localStorage.getItem('blogai_token');
+            const headers = { ...options.headers };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return fetch(url, { ...options, headers });
+        }
+
+        async function loadAdminData() {
+            try {
+                // Fetch Stats
+                const statsRes = await fetchWithAuth('/api/admin/stats');
+                if (statsRes.ok) {
+                    const stats = await statsRes.json();
+                    document.getElementById('stat-total-users').textContent = stats.total_users;
+                    document.getElementById('stat-total-posts').textContent = stats.total_posts;
+                    document.getElementById('stat-total-websites').textContent = stats.total_websites;
+                    document.getElementById('nav-users-count').textContent = stats.total_users;
+                    document.getElementById('nav-posts-count').textContent = stats.total_posts;
+                }
+
+                // Fetch Users
+                const usersRes = await fetchWithAuth('/api/admin/users');
+                if (usersRes.ok) {
+                    const data = await usersRes.json();
+                    const tbody = document.getElementById('users-table-body');
+                    tbody.innerHTML = data.users.map(u => `
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.02)">
+                            <td style="padding:1rem;color:#6C5CE7">#${u.id}</td>
+                            <td style="padding:1rem;font-weight:600">${u.first_name} ${u.last_name}</td>
+                            <td style="padding:1rem;color:#9B9BC0">${u.email}</td>
+                            <td style="padding:1rem;">${u.credits}</td>
+                            <td style="padding:1rem;">${u.posts_count}</td>
+                            <td style="padding:1rem;">${u.websites_count}</td>
+                            <td style="padding:1rem;">
+                                ${u.is_admin ? '<span class="badge badge-published" style="background:rgba(214,48,49,0.1);color:#ff7675;border:1px solid rgba(214,48,49,0.3)">Admin</span>' : '<span class="badge" style="background:rgba(255,255,255,0.05);color:#9B9BC0;">User</span>'}
+                            </td>
+                            <td style="padding:1rem;color:#9B9BC0;font-size:0.85rem">${new Date(u.created_at * 1000).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Fetch Posts
+                const postsRes = await fetchWithAuth('/api/admin/posts');
+                if (postsRes.ok) {
+                    const data = await postsRes.json();
+                    const tbody = document.getElementById('posts-table-body');
+                    tbody.innerHTML = data.posts.map(p => `
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.02)">
+                            <td style="padding:1rem;font-weight:600;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${p.title}">${p.title}</td>
+                            <td style="padding:1rem;color:#00D2FF">${p.user_email || 'Demo User'}</td>
+                            <td style="padding:1rem;">${p.category || 'N/A'}</td>
+                            <td style="padding:1rem;color:#9B9BC0">${p.website_name || '—'}</td>
+                            <td style="padding:1rem;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div style="flex:1;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="width:${p.seo_score}%;height:100%;background:${p.seo_score >= 80 ? '#26de81' : p.seo_score >= 60 ? '#fdb813' : '#fc5c65'}"></div></div>
+                                    <span style="font-size:0.85rem">${p.seo_score}</span>
+                                </div>
+                            </td>
+                            <td style="padding:1rem;">
+                                ${p.published ? '<span class="badge badge-published">Published</span>' : '<span class="badge badge-draft">Draft</span>'}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+            } catch (err) {
+                console.error("Admin Load Error", err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAdminData);
+    </script>
+</body>
+
+</html>

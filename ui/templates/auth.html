@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlogAI – {{ page_title }}</title>
+    <title>InfiniteSEO – {{ page_title }}</title>
     <meta name="description"
-        content="Sign in to BlogAI to generate AI-powered SEO blog posts, manage content, and publish to WordPress.">
+        content="Sign in to InfiniteSEO to generate AI-powered SEO blog posts, manage content, and publish to WordPress.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +33,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
-            BlogAI
+            InfiniteSEO
         </a>
 
         <!-- Auth Card -->
@@ -52,7 +52,7 @@
             <!-- ═══ LOGIN PANEL ═══ -->
             <div class="auth-panel {{ 'active' if mode == 'login' }}" id="panel-login">
                 <h2 class="auth-title">Welcome back</h2>
-                <p class="auth-subtitle">Log in to your BlogAI account to continue</p>
+                <p class="auth-subtitle">Log in to your InfiniteSEO account to continue</p>
 
                 <form onsubmit="handleLogin(event)">
                     <div class="form-group">
@@ -134,7 +134,7 @@
 
         <!-- Footer -->
         <div class="auth-footer">
-            <a href="/">← Back to BlogAI</a>
+            <a href="/">← Back to InfiniteSEO</a>
         </div>
     </div>
 
@@ -271,7 +271,7 @@
             localStorage.setItem('blogai_token', 'demo-token');
             localStorage.setItem('blogai_user', JSON.stringify({
                 name: 'Demo User',
-                email: 'demo@blogai.com',
+                email: 'demo@InfiniteSEO.com',
                 credits: 10,
                 plan: 'starter'
             }));

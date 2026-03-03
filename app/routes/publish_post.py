@@ -1,7 +1,8 @@
 # app/routes/publish_post.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.database import db  # <--- Import the global async db instance
+from app.routes.auth import get_user_id
 from app.utils.cms_publishers import CMSPublisher
 from app.utils.seo_utils import generate_slug
 import re
@@ -18,11 +19,11 @@ class PublishRequest(BaseModel):
     force_publish: bool = True
 
 @router.post("/publish")
-async def publish_post(request: PublishRequest):
+async def publish_post(request: PublishRequest, user_id: int = Depends(get_user_id)):
     """Publish a blog post with full Yoast SEO optimization"""
     try:
         # <--- FIXED: Added await
-        post = await db.get_post(request.post_id)
+        post = await db.get_post(request.post_id, user_id=user_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         
@@ -36,7 +37,7 @@ async def publish_post(request: PublishRequest):
         print(f"{'='*60}\n")
         
         # <--- FIXED: Added await
-        website = await db.get_website(request.website_id)
+        website = await db.get_website(request.website_id, user_id=user_id)
         if not website:
             raise HTTPException(status_code=404, detail="Website not found")
         
@@ -168,7 +169,7 @@ async def publish_post(request: PublishRequest):
             raise HTTPException(status_code=500, detail="Failed to publish post")
         
         # <--- FIXED: Added await
-        await db.update_post_published(request.post_id, published_url)
+        await db.update_post_published(request.post_id, published_url, user_id=user_id)
         
         print(f"\n✅ Successfully published to: {published_url}")
         
@@ -196,11 +197,11 @@ async def publish_post(request: PublishRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/publish-check/{post_id}")
-async def check_publish_eligibility(post_id: int):
+async def check_publish_eligibility(post_id: int, user_id: int = Depends(get_user_id)):
     """Check if a post is eligible for publishing based on SEO score"""
     try:
         # <--- FIXED: Added await
-        post = await db.get_post(post_id)
+        post = await db.get_post(post_id, user_id=user_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         
@@ -237,11 +238,11 @@ async def check_publish_eligibility(post_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/debug/{post_id}")
-async def debug_post_data(post_id: int):
+async def debug_post_data(post_id: int, user_id: int = Depends(get_user_id)):
     """Debug endpoint to see what's in the database"""
     try:
         # <--- FIXED: Added await
-        post = await db.get_post(post_id)
+        post = await db.get_post(post_id, user_id=user_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         

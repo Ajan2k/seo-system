@@ -10,6 +10,16 @@ let _sites = [];
 let _posts = [];
 let _filteredPosts = [];
 
+// ── API Fetch Wrapper ───────────────────────────────────────────────────
+async function fetchWithAuth(url, options = {}) {
+    const token = localStorage.getItem('blogai_token');
+    const headers = { ...options.headers };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([loadWebsites(), loadPosts()]);
@@ -98,7 +108,7 @@ function animateNumber(id, target) {
 // ── Websites ──────────────────────────────────────────────────────────
 async function loadWebsites() {
     try {
-        const res = await fetch(`${API}/websites`);
+        const res = await fetchWithAuth(`${API}/websites`);
         const data = await res.json();
         _sites = data.websites || [];
         renderWebsites();
@@ -146,7 +156,7 @@ function renderWebsites() {
 async function deleteWebsite(id) {
     if (!confirm('Delete this website? Published posts will remain on the CMS.')) return;
     try {
-        const res = await fetch(`${API}/websites/${id}`, { method: 'DELETE' });
+        const res = await fetchWithAuth(`${API}/websites/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
         toast('Website removed', 'success');
         await loadWebsites();
@@ -180,7 +190,7 @@ async function submitWebsiteForm(e) {
         api_key: document.getElementById('ws-api-key').value.trim() || null,
     };
     try {
-        const res = await fetch(`${API}/websites`, {
+        const res = await fetchWithAuth(`${API}/websites`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -198,7 +208,7 @@ async function submitWebsiteForm(e) {
 // ── Posts ─────────────────────────────────────────────────────────────
 async function loadPosts() {
     try {
-        const res = await fetch(`${API}/posts`);
+        const res = await fetchWithAuth(`${API}/posts`);
         const data = await res.json();
         _posts = data.posts || [];
         _filteredPosts = [..._posts];
@@ -348,7 +358,7 @@ async function generateBlog() {
         };
         if (focusKw) body.focus_keyword = focusKw;
 
-        const res = await fetch(`${API}/generate`, {
+        const res = await fetchWithAuth(`${API}/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -412,7 +422,7 @@ async function publishPost(postId) {
     if (!confirm(`Publish this post to "${site?.name || 'selected website'}"?`)) return;
 
     try {
-        const res = await fetch(`${API}/publish`, {
+        const res = await fetchWithAuth(`${API}/publish`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ post_id: postId, website_id: websiteId, force_publish: true }),
@@ -431,7 +441,7 @@ async function publishPost(postId) {
 async function deletePost(postId) {
     if (!confirm('Delete this post permanently?')) return;
     try {
-        const res = await fetch(`${API}/posts/${postId}`, { method: 'DELETE' });
+        const res = await fetchWithAuth(`${API}/posts/${postId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
         toast('Post deleted', 'success');
         await loadPosts();

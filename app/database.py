@@ -52,6 +52,7 @@ class Database:
                     api_url    TEXT    NOT NULL,
                     api_key    TEXT,
                     api_secret TEXT,
+                    user_id    INTEGER,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -100,10 +101,22 @@ class Database:
             for col, definition in [
                 ("focus_keyphrase", "TEXT"),
                 ("seo_title", "TEXT"),
+                ("user_id", "INTEGER"),
             ]:
                 if col not in existing_columns:
                     await conn.execute(f"ALTER TABLE posts ADD COLUMN {col} {definition}")
-                    logger.info("Schema migration applied", extra={"added_column": col})
+                    logger.info("Schema migration applied", extra={"added_column": f"posts.{col}"})
+                    
+            cursor = await conn.execute("PRAGMA table_info(websites)")
+            rows = await cursor.fetchall()
+            existing_columns_webs = {row[1] for row in rows}
+
+            for col, definition in [
+                ("user_id", "INTEGER"),
+            ]:
+                if col not in existing_columns_webs:
+                    await conn.execute(f"ALTER TABLE websites ADD COLUMN {col} {definition}")
+                    logger.info("Schema migration applied", extra={"added_column": f"websites.{col}"})
 
             await conn.commit()
             logger.info("Database tables initialized successfully")
@@ -150,38 +163,45 @@ class Database:
         api_url: str,
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> int:
         if not api_url.startswith("http"):
             api_url = f"https://{api_url}"
         sql = """
-            INSERT INTO websites (name, domain, cms_type, api_url, api_key, api_secret)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO websites (name, domain, cms_type, api_url, api_key, api_secret, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """
         async with self._connect() as conn:
             conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute(sql, (name, domain, cms_type, api_url, api_key, api_secret))
+            cursor = await conn.execute(sql, (name, domain, cms_type, api_url, api_key, api_secret, user_id))
             await conn.commit()
-            logger.info("Website added", extra={"website_name": name, "cms_type": cms_type})
+            logger.info("Website added", extra={"website_name": name, "cms_type": cms_type, "user_id": user_id})
             return cursor.lastrowid  # type: ignore[return-value]
 
-    async def get_websites(self) -> List[Dict[str, Any]]:
+    async def get_websites(self, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
         async with self._connect() as conn:
             conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute("SELECT * FROM websites ORDER BY created_at DESC")
+            query = "SELECT * FROM websites WHERE user_id = ? ORDER BY created_at DESC" if user_id is not None else "SELECT * FROM websites ORDER BY created_at DESC"
+            params = (user_id,) if user_id is not None else ()
+            cursor = await conn.execute(query, params)
             return [dict(row) for row in await cursor.fetchall()]
 
-    async def get_website(self, website_id: int) -> Optional[Dict[str, Any]]:
+    async def get_website(self, website_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         async with self._connect() as conn:
             conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute("SELECT * FROM websites WHERE id = ?", (website_id,))
+            query = "SELECT * FROM websites WHERE id = ? AND user_id = ?" if user_id is not None else "SELECT * FROM websites WHERE id = ?"
+            params = (website_id, user_id) if user_id is not None else (website_id,)
+            cursor = await conn.execute(query, params)
             row = await cursor.fetchone()
             return dict(row) if row else None
 
-    async def delete_website(self, website_id: int) -> None:
+    async def delete_website(self, website_id: int, user_id: Optional[int] = None) -> None:
         async with self._connect() as conn:
-            await conn.execute("DELETE FROM websites WHERE id = ?", (website_id,))
+            query = "DELETE FROM websites WHERE id = ? AND user_id = ?" if user_id is not None else "DELETE FROM websites WHERE id = ?"
+            params = (website_id, user_id) if user_id is not None else (website_id,)
+            await conn.execute(query, params)
             await conn.commit()
-            logger.info("Website deleted", extra={"website_id": website_id})
+            logger.info("Website deleted", extra={"website_id": website_id, "user_id": user_id})
 
     # ── Post CRUD ─────────────────────────────────────────────────────────────
 
@@ -198,6 +218,7 @@ class Database:
         website_id: Optional[int] = None,
         image_url: Optional[str] = None,
         seo_score: int = 0,
+        user_id: Optional[int] = None,
     ) -> int:
         if not slug:
             slug = title.lower().replace(" ", "-").replace(",", "").replace(".", "")
@@ -205,14 +226,14 @@ class Database:
         sql = """
             INSERT INTO posts
                 (title, slug, content, meta_description, keywords,
-                 focus_keyphrase, seo_title, category, website_id, image_url, seo_score)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 focus_keyphrase, seo_title, category, website_id, image_url, seo_score, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         async with self._connect() as conn:
             conn.row_factory = aiosqlite.Row
             cursor = await conn.execute(sql, (
                 title, slug, content, meta_description, keywords,
-                focus_keyphrase, seo_title, category, website_id, image_url, seo_score,
+                focus_keyphrase, seo_title, category, website_id, image_url, seo_score, user_id
             ))
             await conn.commit()
             post_id = cursor.lastrowid  # type: ignore[assignment]
@@ -231,23 +252,33 @@ class Database:
         )
         return post_id  # type: ignore[return-value]
 
-    async def get_posts(self, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_posts(self, limit: int = 50, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
         sql = """
+            SELECT p.*, w.name AS website_name
+            FROM   posts     p
+            LEFT JOIN websites w ON p.website_id = w.id
+            WHERE p.user_id = ?
+            ORDER BY p.created_at DESC
+            LIMIT ?
+        """ if user_id is not None else """
             SELECT p.*, w.name AS website_name
             FROM   posts     p
             LEFT JOIN websites w ON p.website_id = w.id
             ORDER BY p.created_at DESC
             LIMIT ?
         """
+        params = (user_id, limit) if user_id is not None else (limit,)
         async with self._connect() as conn:
             conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute(sql, (limit,))
+            cursor = await conn.execute(sql, params)
             return [dict(row) for row in await cursor.fetchall()]
 
-    async def get_post(self, post_id: int) -> Optional[Dict[str, Any]]:
+    async def get_post(self, post_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         async with self._connect() as conn:
             conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,))
+            query = "SELECT * FROM posts WHERE id = ? AND user_id = ?" if user_id is not None else "SELECT * FROM posts WHERE id = ?"
+            params = (post_id, user_id) if user_id is not None else (post_id,)
+            cursor = await conn.execute(query, params)
             row = await cursor.fetchone()
             return dict(row) if row else None
 
@@ -277,7 +308,7 @@ class Database:
             cursor = await conn.execute(sql, params)
             return [dict(row) for row in await cursor.fetchall()]
 
-    async def update_post(self, post_id: int, **kwargs: Any) -> None:
+    async def update_post(self, post_id: int, user_id: Optional[int] = None, **kwargs: Any) -> None:
         allowed = {
             "title", "slug", "content", "meta_description", "keywords",
             "focus_keyphrase", "seo_title", "category", "seo_score", "image_url",
@@ -292,23 +323,31 @@ class Database:
             return
 
         values.append(post_id)
-        sql = f"UPDATE posts SET {', '.join(fields)} WHERE id = ?"
+        if user_id is not None:
+            values.append(user_id)
+            sql = f"UPDATE posts SET {', '.join(fields)} WHERE id = ? AND user_id = ?"
+        else:
+            sql = f"UPDATE posts SET {', '.join(fields)} WHERE id = ?"
+            
         async with self._connect() as conn:
             await conn.execute(sql, values)
             await conn.commit()
 
-    async def update_post_published(self, post_id: int, published_url: str) -> None:
-        sql = "UPDATE posts SET published = 1, published_url = ? WHERE id = ?"
+    async def update_post_published(self, post_id: int, published_url: str, user_id: Optional[int] = None) -> None:
+        query = "UPDATE posts SET published = 1, published_url = ? WHERE id = ? AND user_id = ?" if user_id is not None else "UPDATE posts SET published = 1, published_url = ? WHERE id = ?"
+        params = (published_url, post_id, user_id) if user_id is not None else (published_url, post_id)
         async with self._connect() as conn:
-            await conn.execute(sql, (published_url, post_id))
+            await conn.execute(query, params)
             await conn.commit()
-        logger.info("Post marked as published", extra={"post_id": post_id, "url": published_url})
+        logger.info("Post marked as published", extra={"post_id": post_id, "url": published_url, "user_id": user_id})
 
-    async def delete_post(self, post_id: int) -> None:
+    async def delete_post(self, post_id: int, user_id: Optional[int] = None) -> None:
         async with self._connect() as conn:
-            await conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+            query = "DELETE FROM posts WHERE id = ? AND user_id = ?" if user_id is not None else "DELETE FROM posts WHERE id = ?"
+            params = (post_id, user_id) if user_id is not None else (post_id,)
+            await conn.execute(query, params)
             await conn.commit()
-        logger.info("Post deleted", extra={"post_id": post_id})
+        logger.info("Post deleted", extra={"post_id": post_id, "user_id": user_id})
 
 
 # Global singleton

@@ -18,19 +18,13 @@ import re
 from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, HttpUrl
 
 from app.database import db
 from app.utils.image_api import ImageGenerator
 from app.utils.search_trends import extract_keywords_from_topic, search_trending_topics
 from app.utils.seo_utils import (
-    add_outbound_links,
-    calculate_seo_score,
-    ensure_keyphrase_in_headings,
-    ensure_keyphrase_in_intro,
-    fix_competing_links,
-    generate_focus_keyphrase,
     generate_meta_description,
     generate_seo_title,
     generate_slug,
@@ -38,9 +32,16 @@ from app.utils.seo_utils import (
     optimize_readability,
     suggest_improvements,
     validate_and_fix_meta_description,
+    add_outbound_links,
+    calculate_seo_score,
+    ensure_keyphrase_in_headings,
+    ensure_keyphrase_in_intro,
+    fix_competing_links,
+    generate_focus_keyphrase,
 )
 from core.config import settings
 from core.logging import get_logger
+from app.routes.auth import get_user_id
 
 logger    = get_logger(__name__)
 router    = APIRouter()
@@ -583,7 +584,7 @@ def clean_keywords(keywords: list) -> List[str]:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/generate")
-async def generate_blog(request: BlogGenerateRequest):
+async def generate_blog(request: BlogGenerateRequest, user_id: int = Depends(get_user_id)):
     """
     Main blog generation endpoint.
 
@@ -604,6 +605,16 @@ async def generate_blog(request: BlogGenerateRequest):
             extra={"category": request.category, "custom_topic": request.custom_topic},
         )
 
+        # Resolve brand name and domain from website_id if provided
+        domain = ""
+        brand_name = request.brand_name
+        if request.website_id:
+            website = await db.get_website(request.website_id, user_id=user_id)
+            if not website:
+                raise HTTPException(status_code=404, detail="Website not found")
+            domain = website.get("domain", "")
+            brand_name = website.get("name", request.brand_name)
+
         # ── 1. Topic & keywords ───────────────────────────────────────────
         if request.custom_topic:
             topic    = request.custom_topic.strip()
@@ -621,7 +632,7 @@ async def generate_blog(request: BlogGenerateRequest):
         else:
             focus = generate_focus_keyphrase(keywords, topic)
 
-        if request.website_id and await db.is_keyphrase_used(focus, request.website_id):
+        if request.website_id and await db.is_keyphrase_used(focus, request.website_id, user_id=user_id):
             logger.warning("Keyphrase already used – appending category", extra={"keyphrase": focus})
             focus = f"{focus} {request.category}".strip()
 
@@ -658,7 +669,7 @@ async def generate_blog(request: BlogGenerateRequest):
                 blog_data = await groq_api.generate_blog(
                     topic=topic,
                     keywords=[focus] + keywords,
-                    brand_name=request.brand_name,
+                    brand_name=brand_name,
                     industries=request.industries,
                     attempt=attempt + 1,
                     research=research,
@@ -779,13 +790,14 @@ async def generate_blog(request: BlogGenerateRequest):
             slug             = final.get("slug", ""),
             content          = final["content"],
             meta_description = final["meta_description"],
-            keywords         = ",".join(keywords),
+            keywords         = ",".join(final["keywords"]),
             category         = request.category,
-            focus_keyphrase  = focus,
+            focus_keyphrase  = final["focus_keyphrase"],
             seo_title        = final["seo_title"],
             website_id       = request.website_id,
             image_url        = image_url,
             seo_score        = final_score,
+            user_id          = user_id,
         )
 
         suggestions      = suggest_improvements(final["seo_details"])
@@ -841,13 +853,13 @@ async def get_trending_topics(category: str, count: int = 5):
 
 
 @router.post("/regenerate/{post_id}")
-async def regenerate_for_better_seo(post_id: int):
+async def regenerate_for_better_seo(post_id: int, user_id: int = Depends(get_user_id)):
     """
     Re-run the full Research → Generate pipeline for an existing post
     that scored below 80. A new post is created (old post preserved).
     """
     try:
-        post = await db.get_post(post_id)
+        post = await db.get_post(post_id, user_id=user_id)
         if not post:
             raise HTTPException(status_code=404, detail=f"Post {post_id} not found")
 

@@ -51,7 +51,7 @@ logger = get_logger(__name__)
 
 # ── App imports ───────────────────────────────────────────────────────────────
 from app.database import db
-from app.routes import generate_blog, publish_post, websites, image_gen, seo_score, auth
+from app.routes import generate_blog, publish_post, websites, image_gen, seo_score, auth, admin_data
 
 
 # ─── Lifespan ────────────────────────────────────────────────────────────────
@@ -131,10 +131,10 @@ templates = Jinja2Templates(directory="ui/templates")
 app.include_router(generate_blog.router, prefix="/api", tags=["📝 Content Generation"])
 app.include_router(publish_post.router,  prefix="/api", tags=["🚀 Publishing"])
 app.include_router(websites.router,      prefix="/api", tags=["🌐 Websites"])
-app.include_router(image_gen.router,     prefix="/api", tags=["🖼️ Images"])
-app.include_router(seo_score.router,     prefix="/api", tags=["📊 SEO Analysis"])
-app.include_router(auth.router,          prefix="/api", tags=["🔐 Authentication"])
-
+app.include_router(image_gen.router, prefix="/api")
+app.include_router(seo_score.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(admin_data.router, prefix="/api")
 
 # ─── WordPress Config Check ───────────────────────────────────────────────────
 
@@ -212,6 +212,17 @@ async def post_preview(request: Request, post_id: int):
     return templates.TemplateResponse(
         "post_preview.html", {"request": request, "post_id": post_id}
     )
+
+@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
+async def admin_login_page(request: Request):
+    """Serve the admin login page."""
+    return templates.TemplateResponse("auth.html", {"request": request, "mode": "login", "page_title": "Admin Login"})
+
+
+@app.get("/admin/dashboard", response_class=HTMLResponse, include_in_schema=False)
+async def admin_dashboard(request: Request):
+    """Serve the admin dashboard."""
+    return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────

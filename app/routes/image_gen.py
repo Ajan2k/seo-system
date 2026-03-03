@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 from app.utils.image_api import ImageGenerator
 from app.database import db  # <--- Import the global async db instance
+from app.routes.auth import get_user_id
 
 router = APIRouter()
 image_gen = ImageGenerator()
@@ -52,11 +53,11 @@ async def generate_image_endpoint(request: ImageGenerateRequest):
 
 
 @router.post("/regenerate-image")
-async def regenerate_image(request: ImageRegenerateRequest):
+async def regenerate_image(request: ImageRegenerateRequest, user_id: int = Depends(get_user_id)):
     """Regenerate image for an existing blog post"""
     try:
         # <--- FIXED: Added await
-        post = await db.get_post(request.post_id)
+        post = await db.get_post(request.post_id, user_id=user_id)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
         
@@ -79,7 +80,7 @@ async def regenerate_image(request: ImageRegenerateRequest):
             )
         
         # <--- FIXED: Use the async update_post method
-        await db.update_post(request.post_id, image_url=image_url)
+        await db.update_post(request.post_id, user_id=user_id, image_url=image_url)
         
         return {
             'success': True,
@@ -193,11 +194,11 @@ async def get_image_sources():
 
 
 @router.get("/image-stats")
-async def get_image_stats():
+async def get_image_stats(user_id: int = Depends(get_user_id)):
     """Get statistics about image usage in posts"""
     try:
         # <--- FIXED: Added await
-        posts = await db.get_posts(limit=1000)
+        posts = await db.get_posts(limit=1000, user_id=user_id)
         
         total_posts = len(posts)
         posts_with_images = sum(1 for p in posts if p.get('image_url'))
