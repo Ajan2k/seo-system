@@ -6,7 +6,15 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # Grab PostgreSQL connection string from Docker env if present
-DB_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:securepassword123@localhost:5432/infiniteseo")
+raw_db_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:securepassword123@localhost:5432/infiniteseo")
+
+# Ensure the asyncpg dialect is used if using standard postgres URLs (like Render's default)
+if raw_db_url.startswith("postgres://"):
+    DB_URL = raw_db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif raw_db_url.startswith("postgresql://"):
+    DB_URL = raw_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+else:
+    DB_URL = raw_db_url
 
 async_engine = create_async_engine(DB_URL, echo=False)
 AsyncSessionLocal = sessionmaker(
