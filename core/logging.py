@@ -167,7 +167,7 @@ def setup_logging() -> None:
     root_logger.addHandler(error_handler)
 
     # ── Suppress noisy third-party loggers ────────────────────────────────────
-    for noisy in ("uvicorn.access", "httpx", "httpcore", "aiosqlite"):
+    for noisy in ("uvicorn.access", "httpx", "httpcore"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     root_logger.info(

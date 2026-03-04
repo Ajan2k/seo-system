@@ -20,14 +20,15 @@ class Settings(BaseSettings):
     APP_VERSION: str = Field(default="2.0.0")
     DEBUG: bool = Field(default=False)
     ENVIRONMENT: str = Field(default="production")  # production | development | testing
+    SECRET_KEY: str = Field(default="c3VwZXJzZWNyZXQtand0LWtleS1jaGFuZ2UtbWU=")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60 * 24 * 7) # 7 days
 
     # ── Server ───────────────────────────────────────────────────────────────
     HOST: str = Field(default="127.0.0.1")
     PORT: int = Field(default=8000)
 
     # ── Database ─────────────────────────────────────────────────────────────
-    DATABASE_PATH: str = Field(default="data/posts.db")
-    DATABASE_BACKUP_DIR: str = Field(default="data/backups")
+    # PostgreSQL is configured via DATABASE_URL env var in models.py
 
     # ── AI / Groq ────────────────────────────────────────────────────────────
     GROQ_API_KEY: str = Field(default="")

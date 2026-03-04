@@ -1,0 +1,30 @@
+.venv
+venv
+.env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.pytest_cache/
+tests/data/test_db.sqlite
+
+# Exclude existing database to prevent overwriting during deployment if accidentally exposed
+data/*
+!data/.keep
+
+# Exclude logs
+logs/*
+!logs/.keep

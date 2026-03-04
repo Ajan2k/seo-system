@@ -1,14 +1,14 @@
-# app/routes/generate_blog.py
+﻿# app/routes/generate_blog.py
 """
-Research → Generate → Optimise → Save pipeline
+Research ΓåÆ Generate ΓåÆ Optimise ΓåÆ Save pipeline
 ===============================================
 Every blog post goes through 3 stages before it is persisted:
 
-  1. Web Research  – DuckDuckGo + Google News RSS scraped for real facts,
+  1. Web Research  ΓÇô DuckDuckGo + Google News RSS scraped for real facts,
                      current statistics, and common editorial angles.
-  2. AI Generation – Groq LLaMA-3.3-70b prompt is prefixed with the
+  2. AI Generation ΓÇô Groq LLaMA-3.3-70b prompt is prefixed with the
                      research context so output is factually grounded.
-  3. SEO Optimisation – Multi-pass readability, keyphrase density,
+  3. SEO Optimisation ΓÇô Multi-pass readability, keyphrase density,
                         heading coverage, and outbound link checks.
 """
 
@@ -48,7 +48,7 @@ router    = APIRouter()
 image_gen = ImageGenerator()
 
 
-# ── Request schema ────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ Request schema ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class BlogGenerateRequest(BaseModel):
     category:     str
@@ -60,10 +60,10 @@ class BlogGenerateRequest(BaseModel):
     industries:   Optional[List[str]]  = ["healthcare", "education", "e-commerce", "real estate"]
 
 
-# ── Groq API client ───────────────────────────────────────────────────────────
+# ΓöÇΓöÇ Groq API client ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class GroqAPI:
-    """Async Groq API client – research-grounded blog generation."""
+    """Async Groq API client ΓÇô research-grounded blog generation."""
 
     def __init__(self) -> None:
         import sys, os
@@ -79,7 +79,7 @@ class GroqAPI:
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
         if not self.api_key:
-            logger.warning("GROQ_API_KEY not configured – generation will fail")
+            logger.warning("GROQ_API_KEY not configured ΓÇô generation will fail")
 
     async def generate_blog(
         self,
@@ -135,7 +135,7 @@ class GroqAPI:
                 + "\n".join(f"  - {h}" for h in top)
             )
 
-        # ── Detect topic type: specific headline vs generic category ─────
+        # ΓöÇΓöÇ Detect topic type: specific headline vs generic category ΓöÇΓöÇΓöÇΓöÇΓöÇ
         # Specific headlines typically have named entities, quotes, or are
         # news-style (e.g. "Microsoft Uncovers Whisper Leak Attack").
         # Generic topics are broader (e.g. "artificial intelligence").
@@ -150,7 +150,7 @@ class GroqAPI:
 
         logger.info("Topic type detected", extra={"is_headline": is_headline, "topic": topic})
 
-        # ── Build the right prompt structure based on topic type ──────────
+        # ΓöÇΓöÇ Build the right prompt structure based on topic type ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if is_headline:
             # News / specific headline: content must directly cover the story
             structure_block = f"""
@@ -359,23 +359,20 @@ SEO & QUALITY RULES
 
         except httpx.TimeoutException:
             logger.error("Groq API timed out")
-            raise RuntimeError("AI generation timed out – please retry")
+            raise HTTPException(status_code=504, detail="AI generation timed out ΓÇô please retry")
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 429:
-                logger.warning("Groq API rate limit (429) hit, passing error to Celery retry handler.")
-                raise exc # Preserve the HTTPStatusError for the celery task retry mechanism to catch
             logger.error("Groq API HTTP error", extra={"status": exc.response.status_code})
-            raise RuntimeError(f"Groq API error: {exc.response.status_code}")
+            raise HTTPException(status_code=500, detail=f"Groq API error: {exc.response.status_code}")
         except httpx.RequestError as exc:
             logger.error("Groq API connection error", extra={"error": str(exc)})
-            raise RuntimeError(f"API connection error: {exc}")
+            raise HTTPException(status_code=500, detail=f"API connection error: {exc}")
         except HTTPException:
             raise
         except Exception:
             logger.exception("Unexpected error calling Groq API")
-            raise RuntimeError("AI generation failed – see server logs")
+            raise HTTPException(status_code=500, detail="AI generation failed ΓÇô see server logs")
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
+    # ΓöÇΓöÇ Internal helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     def _parse(
         self,
@@ -427,7 +424,7 @@ SEO & QUALITY RULES
             blog = self._scaffold(content, topic, kw, all_kw, brand)
 
         if len(blog.split()) < 800:
-            logger.warning("Content too short – enhancing", extra={"words": len(blog.split())})
+            logger.warning("Content too short ΓÇô enhancing", extra={"words": len(blog.split())})
             blog = self._pad(blog, topic, kw, brand)
 
         logger.info("Blog parsed", extra={"words": len(blog.split())})
@@ -449,12 +446,12 @@ SEO & QUALITY RULES
 
 ## Key Benefits of {kw}
 
-- **Operational Efficiency** – Teams report 40–60 % reductions in manual processing time.
-- **Cost Optimisation** – Lower overheads while maintaining output quality.
-- **Better Decision-Making** – Real-time data surfaces actionable insights faster.
-- **Competitive Advantage** – Early adopters consistently out-perform laggards.
-- **Scalability** – Grow capacity without proportional headcount increases.
-- **Improved ROI** – Deployments typically break even within 12–18 months.
+- **Operational Efficiency** ΓÇô Teams report 40ΓÇô60 % reductions in manual processing time.
+- **Cost Optimisation** ΓÇô Lower overheads while maintaining output quality.
+- **Better Decision-Making** ΓÇô Real-time data surfaces actionable insights faster.
+- **Competitive Advantage** ΓÇô Early adopters consistently out-perform laggards.
+- **Scalability** ΓÇô Grow capacity without proportional headcount increases.
+- **Improved ROI** ΓÇô Deployments typically break even within 12ΓÇô18 months.
 
 {brand} has helped organisations across sectors achieve these outcomes.
 """
@@ -463,11 +460,11 @@ SEO & QUALITY RULES
 
 ## How to Implement {kw} Successfully
 
-1. **Discovery & Assessment** – Audit current processes; identify pain points.
-2. **Strategy & Planning** – Define KPIs and align stakeholders.
-3. **Pilot Deployment** – Run a controlled proof-of-concept.
-4. **Full Rollout** – Scale based on validated pilot learnings.
-5. **Continuous Optimisation** – Measure, iterate, and improve monthly.
+1. **Discovery & Assessment** ΓÇô Audit current processes; identify pain points.
+2. **Strategy & Planning** ΓÇô Define KPIs and align stakeholders.
+3. **Pilot Deployment** ΓÇô Run a controlled proof-of-concept.
+4. **Full Rollout** ΓÇô Scale based on validated pilot learnings.
+5. **Continuous Optimisation** ΓÇô Measure, iterate, and improve monthly.
 
 {brand} provides expert guidance at every stage.
 """
@@ -476,9 +473,9 @@ SEO & QUALITY RULES
 
 ## Common Challenges and How to Overcome Them
 
-**Resistance to Change** – Invest in change management and early buy-in.
-**Data Quality Issues** – Establish governance policies before deployment.
-**Budget Constraints** – Start with a focused pilot that proves ROI, then expand.
+**Resistance to Change** ΓÇô Invest in change management and early buy-in.
+**Data Quality Issues** ΓÇô Establish governance policies before deployment.
+**Budget Constraints** ΓÇô Start with a focused pilot that proves ROI, then expand.
 """
         if "conclusion" not in content.lower():
             out += f"""
@@ -529,16 +526,16 @@ through technology and strategy.
 
 ## Key Benefits of {kw}
 
-- 40–60 % operational efficiency gains
-- 30–50 % cost reductions
+- 40ΓÇô60 % operational efficiency gains
+- 30ΓÇô50 % cost reductions
 - Faster time-to-market
 
 ## How {kw} Works
 
-1. Assess – evaluate current state
-2. Design – architect the solution
-3. Implement – deploy iteratively
-4. Optimise – measure and improve
+1. Assess ΓÇô evaluate current state
+2. Design ΓÇô architect the solution
+3. Implement ΓÇô deploy iteratively
+4. Optimise ΓÇô measure and improve
 
 ## Industry Applications
 
@@ -567,7 +564,7 @@ Reduced admin overhead by 40 % in pilot programmes.
 groq_api = GroqAPI()
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 def clean_keywords(keywords: list) -> List[str]:
     """Return a flat, unique, lowercase list of keyword strings."""
@@ -584,127 +581,105 @@ def clean_keywords(keywords: list) -> List[str]:
     return result
 
 
-# ── Generation Logic ────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ Endpoints ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-async def run_async_generation(
-    topic: str,
-    category: str,
-    website_id: Optional[int],
-    user_id: int,
-    is_custom: bool,
-    target_score: int,
-    brand_name: str,
-    focus_keyword: Optional[str],
-    industries: Optional[List[str]]
-) -> dict:
-    """Core logic to generate a blog post, intended to be run by the Celery worker.
-    
-    Creates fresh async resources (DB engine, HTTP client) on the CURRENT event loop
-    to avoid 'Future attached to a different loop' errors when called via asyncio.run().
+@router.post("/generate")
+async def generate_blog(request: BlogGenerateRequest, user_id: int = Depends(get_user_id)):
     """
+    Main blog generation endpoint.
+
+    Pipeline:
+      1. Resolve topic & keywords
+      2. Web research (DuckDuckGo + Google News RSS  ΓåÆ  real facts & stats)
+      3. AI generation with research grounding (up to 3 attempts)
+      4. Multi-pass SEO optimisation
+      5. Image fetching
+      6. Database persistence
+    """
+    # Local import avoids any circular dependency
     from app.utils.web_researcher import research_topic
-    from app.models import DB_URL, Post, Website, UsedKeyphrase
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-    from sqlalchemy.orm import sessionmaker
-    from sqlalchemy.future import select
-    from sqlalchemy import desc
-
-    # ── Create fresh async engine & session for THIS event loop ──────────
-    local_engine = create_async_engine(DB_URL, echo=False)
-    LocalSession = sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
-
-    # ── Create a fresh GroqAPI client for THIS event loop ────────────────
-    local_groq = GroqAPI()
-
-    # ── Helper: local db operations ──────────────────────────────────────
-    async def local_get_website(wid, uid):
-        async with LocalSession() as session:
-            query = select(Website).where(Website.id == wid)
-            if uid is not None:
-                query = query.where(Website.user_id == uid)
-            result = await session.execute(query)
-            obj = result.scalars().first()
-            if not obj:
-                return None
-            return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
-
-    async def local_is_keyphrase_used(kp, wid, uid=None):
-        async with LocalSession() as session:
-            query = select(UsedKeyphrase).where(UsedKeyphrase.keyphrase == kp.lower().strip())
-            if wid:
-                query = query.where(UsedKeyphrase.website_id == wid)
-            result = await session.execute(query)
-            return result.scalars().first() is not None
-
-    async def local_add_post(**kwargs):
-        async with LocalSession() as session:
-            post = Post(**kwargs)
-            session.add(post)
-            await session.commit()
-            return post.id
-
-    async def local_add_keyphrase(kp, pid, wid):
-        async with LocalSession() as session:
-            obj = UsedKeyphrase(website_id=wid, keyphrase=kp.lower().strip(), post_id=pid)
-            session.add(obj)
-            await session.commit()
 
     try:
-        logger.info("Blog generation started in worker", extra={"category": category, "topic": topic})
+        logger.info(
+            "Blog generation started",
+            extra={"category": request.category, "custom_topic": request.custom_topic},
+        )
 
+        # Resolve brand name and domain from website_id if provided
         domain = ""
-        if website_id:
-            website = await local_get_website(website_id, user_id)
+        brand_name = request.brand_name
+        if request.website_id:
+            website = await db.get_website(request.website_id, user_id=user_id)
             if not website:
-                raise ValueError("Website not found")
+                raise HTTPException(status_code=404, detail="Website not found")
             domain = website.get("domain", "")
-            brand_name = website.get("name", brand_name)
+            brand_name = website.get("name", request.brand_name)
 
-        if is_custom:
-            topic = topic.strip()
+        # ΓöÇΓöÇ 1. Topic & keywords ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        if request.custom_topic:
+            topic    = request.custom_topic.strip()
             keywords = extract_keywords_from_topic(topic)
         else:
-            trending = search_trending_topics(category, count=1)
-            topic = trending[0] if trending else f"Complete Guide to {category}"
+            trending = search_trending_topics(request.category, count=1)
+            topic    = trending[0] if trending else f"Complete Guide to {request.category}"
             keywords = extract_keywords_from_topic(topic)
 
         keywords = clean_keywords(keywords)[:7]
 
-        if focus_keyword:
-            focus = focus_keyword.strip().lower()
+        # ΓöÇΓöÇ 2. Focus keyphrase ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        if request.focus_keyword:
+            focus = request.focus_keyword.strip().lower()
         else:
             focus = generate_focus_keyphrase(keywords, topic)
 
-        if website_id and await local_is_keyphrase_used(focus, website_id, user_id):
-            logger.warning("Keyphrase already used – appending category", extra={"keyphrase": focus})
-            focus = f"{focus} {category}".strip()
+        if request.website_id and await db.is_keyphrase_used(focus, request.website_id, user_id=user_id):
+            logger.warning("Keyphrase already used ΓÇô appending category", extra={"keyphrase": focus})
+            focus = f"{focus} {request.category}".strip()
 
-        logger.info("Topic & keyphrase resolved", extra={"topic": topic, "keyphrase": focus})
+        logger.info("Topic & keyphrase resolved", extra={
+            "topic": topic, "keyphrase": focus, "keywords": keywords[:5],
+        })
 
+        # ΓöÇΓöÇ 3. Web Research ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         research = None
         try:
-            research = await research_topic(topic=topic, keyphrase=focus, category=category)
+            research = await research_topic(
+                topic=topic, keyphrase=focus, category=request.category,
+            )
+            logger.info("Web research complete", extra={
+                "articles": len(research.articles),
+                "facts":    len(research.key_facts),
+                "sources":  research.sources,
+            })
         except Exception as exc:
-            logger.warning("Web research failed – proceeding without research context", extra={"error": str(exc)})
+            # Research is non-fatal ΓÇô generation continues without it
+            logger.warning(
+                "Web research failed ΓÇô proceeding without research context",
+                extra={"error": str(exc)},
+            )
 
+        # ΓöÇΓöÇ 4. AI Generation loop (up to 3 attempts) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         max_attempts = 3
-        best_post = None
+        best_post: dict | None = None
         best_score = 0
 
         for attempt in range(max_attempts):
+            logger.info("Generation attempt", extra={"attempt": attempt + 1, "of": max_attempts})
             try:
-                blog_data = await local_groq.generate_blog(
+                blog_data = await groq_api.generate_blog(
                     topic=topic,
                     keywords=[focus] + keywords,
                     brand_name=brand_name,
-                    industries=industries,
+                    industries=request.industries,
                     attempt=attempt + 1,
                     research=research,
                 )
 
                 if not blog_data.get("content") or len(blog_data["content"].strip()) < 500:
+                    logger.warning("Content too short ΓÇô retrying", extra={"attempt": attempt + 1})
                     continue
 
+                # ΓöÇΓöÇ 5. SEO optimisation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
                 try:
                     blog_data["content"] = optimize_readability(
                         content=blog_data["content"], title=blog_data["title"],
@@ -734,193 +709,142 @@ async def run_async_generation(
                         topic=topic, max_links=3, avoid_anchor_terms=[focus],
                     )
                 except Exception as opt_exc:
-                    logger.warning("SEO optimisation step failed", extra={"error": str(opt_exc)})
+                    logger.warning("SEO optimisation step failed ΓÇô continuing", extra={"error": str(opt_exc)})
 
+                # Run intro injection again after optimisation (idempotent)
                 blog_data["content"] = ensure_keyphrase_in_intro(blog_data["content"], focus)
+
+                # ΓöÇΓöÇ 6. SEO metadata ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
                 seo_title = generate_seo_title(blog_data["title"], focus)
                 blog_data["seo_title"] = seo_title
+
                 raw_meta = blog_data.get("meta_description") or blog_data.get("content", "")
                 meta = generate_meta_description(content=raw_meta, keyphrase=focus)
                 blog_data["meta_description"] = meta
+
                 slug = generate_slug(blog_data["title"], focus)
                 blog_data["slug"] = slug
 
-                seo_details = calculate_seo_score(
+                # ΓöÇΓöÇ 7. SEO score ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+                seo_details   = calculate_seo_score(
                     title=seo_title, content=blog_data["content"],
                     keywords=keywords, meta_description=meta, focus_keyphrase=focus,
                 )
                 current_score = seo_details["total_score"]
 
+                logger.info("SEO score", extra={
+                    "attempt":    attempt + 1,
+                    "score":      current_score,
+                    "target":     request.target_score,
+                    "word_count": len(blog_data["content"].split()),
+                    "meta_len":   len(meta),
+                })
+
                 if current_score > best_score:
                     best_score = current_score
                     best_post  = {
                         **blog_data,
-                        "seo_details": seo_details,
-                        "keywords": keywords,
+                        "seo_details":     seo_details,
+                        "keywords":        keywords,
                         "focus_keyphrase": focus,
                     }
 
-                if current_score >= target_score:
+                if current_score >= request.target_score:
+                    logger.info("Target SEO score achieved", extra={"score": current_score})
                     break
 
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:
-                    raise exc
-                if attempt == max_attempts - 1:
-                    raise RuntimeError(f"Generation failed API error: {exc}")
+            except HTTPException:
+                raise
             except Exception as attempt_exc:
+                logger.error("Attempt failed", extra={"attempt": attempt + 1, "error": str(attempt_exc)})
                 if attempt == max_attempts - 1:
-                    raise RuntimeError(f"Generation failed: {attempt_exc}")
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"Generation failed after {max_attempts} attempts: {attempt_exc}",
+                    )
 
+        # ΓöÇΓöÇ 8. Require content ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if not best_post:
-            raise RuntimeError("Failed to generate content.")
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to generate content. Check GROQ_API_KEY and retry.",
+            )
 
-        final = best_post
+        final       = best_post
         final_score = final["seo_details"]["total_score"]
 
+        # ΓöÇΓöÇ 9. Featured image ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         image_url = None
         try:
-            local_image_gen = ImageGenerator()
-            image_url = local_image_gen.generate_image(prompt=final["title"], keywords=[focus] + keywords)
+            image_url = image_gen.generate_image(
+                prompt=final["title"], keywords=[focus] + keywords,
+            )
+            logger.info("Featured image fetched", extra={"url": image_url})
         except Exception as img_exc:
-            pass
+            logger.warning("Image fetch failed ΓÇô post saved without image",
+                           extra={"error": str(img_exc)})
 
-        post_id = await local_add_post(
-            title=final["title"],
-            slug=final.get("slug", ""),
-            content=final["content"],
-            meta_description=final["meta_description"],
-            keywords=",".join(final["keywords"]),
-            category=category,
-            focus_keyphrase=final["focus_keyphrase"],
-            seo_title=final["seo_title"],
-            website_id=website_id,
-            image_url=image_url,
-            seo_score=final_score,
-            user_id=user_id,
+        # ΓöÇΓöÇ 10. Persist ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        post_id = await db.add_post(
+            title            = final["title"],
+            slug             = final.get("slug", ""),
+            content          = final["content"],
+            meta_description = final["meta_description"],
+            keywords         = ",".join(final["keywords"]),
+            category         = request.category,
+            focus_keyphrase  = final["focus_keyphrase"],
+            seo_title        = final["seo_title"],
+            website_id       = request.website_id,
+            image_url        = image_url,
+            seo_score        = final_score,
+            user_id          = user_id,
         )
 
-        if final["focus_keyphrase"] and website_id:
-            await local_add_keyphrase(final["focus_keyphrase"], post_id, website_id)
-
-        suggestions = suggest_improvements(final["seo_details"])
+        suggestions      = suggest_improvements(final["seo_details"])
         ready_to_publish = final_score >= 80
 
+        logger.info("Blog generation complete", extra={
+            "post_id":          post_id,
+            "seo_score":        final_score,
+            "word_count":       len(final["content"].split()),
+            "research_sources": research.sources if research else [],
+            "ready":            ready_to_publish,
+        })
+
         return {
-            "success": True,
-            "post_id": post_id,
-            "title": final["title"],
-            "seo_title": final["seo_title"],
-            "slug": final["slug"],
-            "content": final["content"],
+            "success":          True,
+            "post_id":          post_id,
+            "title":            final["title"],
+            "seo_title":        final["seo_title"],
+            "slug":             final["slug"],
+            "content":          final["content"],
             "meta_description": final["meta_description"],
-            "keywords": keywords,
-            "focus_keyphrase": focus,
-            "seo_score": final_score,
-            "seo_details": final["seo_details"],
-            "suggestions": suggestions,
-            "image_url": image_url,
+            "keywords":         keywords,
+            "focus_keyphrase":  focus,
+            "seo_score":        final_score,
+            "seo_details":      final["seo_details"],
+            "suggestions":      suggestions,
+            "image_url":        image_url,
             "ready_to_publish": ready_to_publish,
-            "word_count": len(final["content"].split()),
+            "word_count":       len(final["content"].split()),
             "research_sources": research.sources if research else [],
         }
 
-    except Exception as exc:
-        logger.exception("Background generation task failed")
-        raise
-    finally:
-        # Clean up the local engine to release connections
-        await local_groq.client.aclose()
-        await local_engine.dispose()
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
-
-from app.celery_app import celery_app
-from celery.result import AsyncResult
-
-@router.post("/generate")
-async def generate_blog(request: BlogGenerateRequest, user_id: int = Depends(get_user_id)):
-    """
-    Main blog generation endpoint (Asynchronous via Celery).
-    """
-    try:
-        logger.info(
-            "Dispatching blog generation to Celery",
-            extra={"category": request.category, "custom_topic": request.custom_topic},
-        )
-        
-        task = celery_app.send_task(
-            "app.worker.generate_blog_task",
-            kwargs={
-                "topic": request.custom_topic if request.custom_topic else f"Complete Guide to {request.category}",
-                "category": request.category,
-                "website_id": request.website_id,
-                "user_id": user_id if user_id else None,  # demo user (id=0) → None for nullable FK
-                "is_custom": bool(request.custom_topic),
-                "target_score": request.target_score,
-                "brand_name": request.brand_name,
-                "focus_keyword": request.focus_keyword,
-                "industries": request.industries,
-            }
-        )
-        
-        logger.info("Task dispatched", extra={"task_id": task.id})
-
-        return {
-            "success": True,
-            "task_id": task.id,
-            "status": "processing",
-            "message": "Blog generation started in the background."
-        }
-
-    except Exception as exc:
-        logger.exception("Failed to dispatch blog generation task")
+    except HTTPException:
+        raise  # already formatted; don't double-wrap
+    except Exception:
+        logger.exception("Unhandled error in generate_blog",
+                         extra={"category": request.category})
         raise HTTPException(
             status_code=500,
-            detail="Failed to start blog generation queue. Please try again later."
+            detail="An unexpected error occurred during blog generation. Please try again.",
         )
 
-@router.get("/generate/status/{task_id}")
-async def get_generation_status(task_id: str, user_id: int = Depends(get_user_id)):
-    """Status polling endpoint for the frontend to check Celery task progress."""
-    try:
-        task_result = AsyncResult(task_id)
-        
-        if task_result.state == 'PENDING':
-            # Task hasn't started yet or is actively running
-            return {"task_id": task_id, "status": "processing"}
-            
-        elif task_result.state == 'SUCCESS':
-            # Job finished correctly, structure the return block identically to the former completion response
-            result_data = task_result.result
-            return {
-                "task_id": task_id, 
-                "status": "completed", 
-                **result_data 
-            }
-            
-        elif task_result.state == 'FAILURE':
-            # Task threw an exception during retries
-            return {
-                "task_id": task_id, 
-                "status": "failed", 
-                "detail": str(task_result.info)
-            }
-            
-        else:
-            # Handle other Celery states (e.g. RETRY, STARTED)
-            return {"task_id": task_id, "status": "processing", "celery_state": task_result.state}
-            
-    except Exception as exc:
-        logger.exception("Status check failed", extra={"task_id": task_id})
-        raise HTTPException(status_code=500, detail="Error fetching task status")
 
 @router.get("/trending/{category}")
 async def get_trending_topics(category: str, count: int = 5):
     """Return trending topics for a given category from Google News & DuckDuckGo."""
     try:
-        # Local import avoids circular dependency
-        from app.utils.web_researcher import search_trending_topics
         topics = search_trending_topics(category, count)
         return {"success": True, "topics": topics, "count": len(topics)}
     except Exception as exc:
@@ -931,7 +855,7 @@ async def get_trending_topics(category: str, count: int = 5):
 @router.post("/regenerate/{post_id}")
 async def regenerate_for_better_seo(post_id: int, user_id: int = Depends(get_user_id)):
     """
-    Re-run the full Research → Generate pipeline for an existing post
+    Re-run the full Research ΓåÆ Generate pipeline for an existing post
     that scored below 80. A new post is created (old post preserved).
     """
     try:
@@ -943,7 +867,7 @@ async def regenerate_for_better_seo(post_id: int, user_id: int = Depends(get_use
         if current_score >= 80:
             return {
                 "success":       True,
-                "message":       "Post already has a good SEO score (≥80) – no regeneration needed",
+                "message":       "Post already has a good SEO score (ΓëÑ80) ΓÇô no regeneration needed",
                 "current_score": current_score,
             }
 
@@ -974,4 +898,4 @@ async def regenerate_for_better_seo(post_id: int, user_id: int = Depends(get_use
         raise
     except Exception:
         logger.exception("Regeneration failed", extra={"post_id": post_id})
-        raise HTTPException(status_code=500, detail="Regeneration failed – see server logs")
+        raise HTTPException(status_code=500, detail="Regeneration failed ΓÇô see server logs")

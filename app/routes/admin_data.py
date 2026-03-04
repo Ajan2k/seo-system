@@ -1,69 +1,108 @@
 # app/routes/admin_data.py
-import aiosqlite
+"""Admin dashboard data endpoints – PostgreSQL via SQLAlchemy async."""
+
 from fastapi import APIRouter, Depends
 from typing import List, Dict, Any
+from sqlalchemy.future import select
+from sqlalchemy import func, desc
 
-from app.database import db
+from app.models import AsyncSessionLocal, User, Post, Website
 from app.routes.auth import get_current_admin
-from core.config import settings
+from core.logging import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter()
-DB_PATH = settings.DATABASE_PATH
+
 
 @router.get("/admin/stats")
 async def get_admin_stats(admin_id: int = Depends(get_current_admin)):
     """Get global statistics for the admin dashboard."""
-    async with db._connect() as conn:
-        conn.row_factory = aiosqlite.Row
-        
-        users_count = await (await conn.execute("SELECT COUNT(id) FROM users")).fetchone()
-        posts_count = await (await conn.execute("SELECT COUNT(id) FROM posts")).fetchone()
-        websites_count = await (await conn.execute("SELECT COUNT(id) FROM websites")).fetchone()
-        
-        return {
-            "success": True,
-            "total_users": users_count[0],
-            "total_posts": posts_count[0],
-            "total_websites": websites_count[0]
-        }
+    async with AsyncSessionLocal() as session:
+        users_count = (await session.execute(select(func.count(User.id)))).scalar() or 0
+        posts_count = (await session.execute(select(func.count(Post.id)))).scalar() or 0
+        websites_count = (await session.execute(select(func.count(Website.id)))).scalar() or 0
+
+    return {
+        "success": True,
+        "total_users": users_count,
+        "total_posts": posts_count,
+        "total_websites": websites_count
+    }
+
 
 @router.get("/admin/users")
 async def get_all_users(admin_id: int = Depends(get_current_admin)):
     """List all users along with their post counts."""
-    async with db._connect() as conn:
-        conn.row_factory = aiosqlite.Row
-        
-        query = """
-            SELECT u.id, u.first_name, u.last_name, u.email, u.credits, u.is_admin, u.created_at,
-                   COUNT(p.id) as posts_count,
-                   COUNT(DISTINCT w.id) as websites_count
-            FROM users u
-            LEFT JOIN posts p ON u.id = p.user_id
-            LEFT JOIN websites w ON u.id = w.user_id
-            GROUP BY u.id
-            ORDER BY u.created_at DESC
-        """
-        cursor = await conn.execute(query)
-        users = [dict(row) for row in await cursor.fetchall()]
-        
-        return {"success": True, "users": users}
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(
+                User.id,
+                User.first_name,
+                User.last_name,
+                User.email,
+                User.credits,
+                User.is_admin,
+                User.created_at,
+                func.count(Post.id).label("posts_count"),
+                func.count(func.distinct(Website.id)).label("websites_count"),
+            )
+            .outerjoin(Post, User.id == Post.user_id)
+            .outerjoin(Website, User.id == Website.user_id)
+            .group_by(User.id)
+            .order_by(desc(User.created_at))
+        )
+        rows = result.all()
+        users = [
+            {
+                "id": r.id,
+                "first_name": r.first_name,
+                "last_name": r.last_name,
+                "email": r.email,
+                "credits": r.credits,
+                "is_admin": r.is_admin,
+                "created_at": str(r.created_at) if r.created_at else None,
+                "posts_count": r.posts_count,
+                "websites_count": r.websites_count,
+            }
+            for r in rows
+        ]
+
+    return {"success": True, "users": users}
+
 
 @router.get("/admin/posts")
 async def get_all_posts(admin_id: int = Depends(get_current_admin)):
     """List all posts across the system."""
-    async with db._connect() as conn:
-        conn.row_factory = aiosqlite.Row
-        
-        query = """
-            SELECT p.id, p.title, p.category, p.seo_score, p.published, p.created_at, 
-                   u.email as user_email, w.name as website_name
-            FROM posts p
-            LEFT JOIN users u ON p.user_id = u.id
-            LEFT JOIN websites w ON p.website_id = w.id
-            ORDER BY p.created_at DESC
-            LIMIT 100
-        """
-        cursor = await conn.execute(query)
-        posts = [dict(row) for row in await cursor.fetchall()]
-        
-        return {"success": True, "posts": posts}
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(
+                Post.id,
+                Post.title,
+                Post.category,
+                Post.seo_score,
+                Post.published,
+                Post.created_at,
+                User.email.label("user_email"),
+                Website.name.label("website_name"),
+            )
+            .outerjoin(User, Post.user_id == User.id)
+            .outerjoin(Website, Post.website_id == Website.id)
+            .order_by(desc(Post.created_at))
+            .limit(100)
+        )
+        rows = result.all()
+        posts = [
+            {
+                "id": r.id,
+                "title": r.title,
+                "category": r.category,
+                "seo_score": r.seo_score,
+                "published": r.published,
+                "created_at": str(r.created_at) if r.created_at else None,
+                "user_email": r.user_email,
+                "website_name": r.website_name,
+            }
+            for r in rows
+        ]
+
+    return {"success": True, "posts": posts}

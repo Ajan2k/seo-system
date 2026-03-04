@@ -1,0 +1,31 @@
+/usr/local/lib/python3.11/site-packages/celery/platforms.py:841: SecurityWarning: You're running the worker with superuser privileges: this is
+absolutely not recommended!
+
+Please specify a different user using the --uid option.
+
+User information: uid=0 euid=0 gid=0 egid=0
+
+  warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+ 
+ -------------- celery@5df8af1efdc4 v5.6.2 (recovery)
+--- ***** ----- 
+-- ******* ---- Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41 2026-03-04 05:39:00
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         infiniteseo_tasks:0x7fdadd6bd9d0
+- ** ---------- .> transport:   redis://redis:6379/0
+- ** ---------- .> results:     redis://redis:6379/0
+- *** --- * --- .> concurrency: 16 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . app.worker.generate_blog_task
+
+[2026-03-04 05:39:01,677: INFO/MainProcess] Connected to redis://redis:6379/0
+[2026-03-04 05:39:01,686: INFO/MainProcess] mingle: searching for neighbors
+[2026-03-04 05:39:02,746: INFO/MainProcess] mingle: all alone
+[2026-03-04 05:39:02,761: INFO/MainProcess] celery@5df8af1efdc4 ready.

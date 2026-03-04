@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: infiniteseo_web
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:securepassword123@db:5432/infiniteseo
+      - REDIS_URL=redis://redis:6379/0
+    restart: always
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: .
+    container_name: infiniteseo_worker
+    command: celery -A app.celery_app.celery_app worker --loglevel=info
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:securepassword123@db:5432/infiniteseo
+      - REDIS_URL=redis://redis:6379/0
+    restart: always
+    depends_on:
+      - db
+      - redis
+      - web
+
+  db:
+    image: postgres:15-alpine
+    container_name: infiniteseo_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=securepassword123
+      - POSTGRES_DB=infiniteseo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: infiniteseo_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  pgdata:

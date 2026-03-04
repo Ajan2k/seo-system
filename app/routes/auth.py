@@ -2,7 +2,7 @@
 """
 Authentication routes for BlogAI SaaS platform.
 
-Simple token-based auth with SQLite user storage.
+PostgreSQL-backed token-based auth via SQLAlchemy async.
 Supports signup, login, and user profile endpoints.
 """
 
@@ -10,18 +10,16 @@ import hashlib
 import secrets
 import time
 
-import aiosqlite
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy.future import select
 
-from core.config import settings
+from app.models import AsyncSessionLocal, User
 from core.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
-
-DB_PATH = settings.DATABASE_PATH
 
 
 # ── Request / Response models ─────────────────────────────────────────────
@@ -53,51 +51,17 @@ def _generate_token() -> str:
     return secrets.token_urlsafe(48)
 
 
-async def _ensure_users_table():
-    """Create users table if it doesn't exist."""
-    async with aiosqlite.connect(DB_PATH) as conn:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                first_name TEXT NOT NULL,
-                last_name TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                password_salt TEXT NOT NULL,
-                token TEXT,
-                credits INTEGER DEFAULT 5,
-                plan TEXT DEFAULT 'free',
-                is_admin INTEGER DEFAULT 0,
-                created_at REAL NOT NULL,
-                last_login REAL
-            )
-        """)
-        
-        # Inline column migrations for users
-        cursor = await conn.execute("PRAGMA table_info(users)")
-        rows = await cursor.fetchall()
-        existing_columns = {row[1] for row in rows}
-        if "is_admin" not in existing_columns:
-            await conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
-            
-        await conn.commit()
-
-
 # ── Routes ────────────────────────────────────────────────────────────────
 
 @router.post("/auth/signup")
 async def signup(req: SignupRequest):
     """Create a new user account."""
-    await _ensure_users_table()
-
-    async with aiosqlite.connect(DB_PATH) as conn:
-        conn.row_factory = aiosqlite.Row
-
+    async with AsyncSessionLocal() as session:
         # Check if email already exists
-        cursor = await conn.execute(
-            "SELECT id FROM users WHERE email = ?", (req.email.lower(),)
+        result = await session.execute(
+            select(User).where(User.email == req.email.lower())
         )
-        existing = await cursor.fetchone()
+        existing = result.scalars().first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -111,13 +75,21 @@ async def signup(req: SignupRequest):
         is_admin_flag = 1 if req.email.lower() == "admin@infiniteseo.com" else 0
 
         # Insert user
-        cursor = await conn.execute(
-            """INSERT INTO users (first_name, last_name, email, password_hash, password_salt, token, credits, plan, is_admin, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (req.first_name, req.last_name, req.email.lower(), password_hash, salt, token, 5, "free", is_admin_flag, time.time())
+        user = User(
+            first_name=req.first_name,
+            last_name=req.last_name,
+            email=req.email.lower(),
+            password_hash=password_hash,
+            password_salt=salt,
+            token=token,
+            credits=5,
+            plan="free",
+            is_admin=is_admin_flag,
         )
-        await conn.commit()
-        user_id = cursor.lastrowid
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        user_id = user.id
 
     logger.info("User registered", extra={"user_id": user_id, "email": req.email})
 
@@ -139,45 +111,38 @@ async def signup(req: SignupRequest):
 @router.post("/auth/login")
 async def login(req: LoginRequest):
     """Authenticate an existing user."""
-    await _ensure_users_table()
-
-    async with aiosqlite.connect(DB_PATH) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        cursor = await conn.execute(
-            "SELECT * FROM users WHERE email = ?",
-            (req.email.lower(),)
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.email == req.email.lower())
         )
-        user = await cursor.fetchone()
+        user = result.scalars().first()
 
         if not user:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         # Verify password
-        password_hash, _ = _hash_password(req.password, user["password_salt"])
-        if password_hash != user["password_hash"]:
+        password_hash, _ = _hash_password(req.password, user.password_salt)
+        if password_hash != user.password_hash:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         # Generate new token
         token = _generate_token()
-        await conn.execute(
-            "UPDATE users SET token = ?, last_login = ? WHERE id = ?",
-            (token, time.time(), user["id"])
-        )
-        await conn.commit()
+        user.token = token
+        user.last_login = time.time()
+        await session.commit()
 
-    logger.info("User logged in", extra={"user_id": user["id"], "email": user["email"]})
+    logger.info("User logged in", extra={"user_id": user.id, "email": user.email})
 
     return {
         "success": True,
         "token": token,
         "user": {
-            "id": user["id"],
-            "name": f"{user['first_name']} {user['last_name']}",
-            "email": user["email"],
-            "credits": user["credits"],
-            "plan": user["plan"],
-            "is_admin": user["is_admin"],
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name}",
+            "email": user.email,
+            "credits": user.credits,
+            "plan": user.plan,
+            "is_admin": user.is_admin,
         },
     }
 
@@ -185,15 +150,13 @@ async def login(req: LoginRequest):
 @router.get("/auth/me")
 async def get_current_user(request: Request):
     """Get current user profile from token."""
-    await _ensure_users_table()
-
     auth_header = request.headers.get("Authorization", "")
     token = auth_header.replace("Bearer ", "").strip()
 
-    # Demo token
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized - missing token")
         
+    # Demo token
     if token == "demo-token":
         return {
             "success": True,
@@ -207,13 +170,11 @@ async def get_current_user(request: Request):
             }
         }
 
-    async with aiosqlite.connect(DB_PATH) as conn:
-        conn.row_factory = aiosqlite.Row
-        cursor = await conn.execute(
-            "SELECT id, first_name, last_name, email, credits, plan, is_admin FROM users WHERE token = ?",
-            (token,)
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.token == token)
         )
-        user = await cursor.fetchone()
+        user = result.scalars().first()
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -221,12 +182,12 @@ async def get_current_user(request: Request):
     return {
         "success": True,
         "user": {
-            "id": user["id"],
-            "name": f"{user['first_name']} {user['last_name']}",
-            "email": user["email"],
-            "credits": user["credits"],
-            "plan": user["plan"],
-            "is_admin": user["is_admin"],
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name}",
+            "email": user.email,
+            "credits": user.credits,
+            "plan": user.plan,
+            "is_admin": user.is_admin,
         }
     }
 

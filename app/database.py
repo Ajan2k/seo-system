@@ -1,125 +1,32 @@
-# app/database.py
-"""
-Async SQLite Database Layer (aiosqlite)
-
-Design decisions:
-  - All public methods are async def and use context managers.
-  - Structured logging replaces print() statements.
-  - Inline migration handles schema evolution without an external tool.
-  - Type annotations on all public methods.
-"""
-import aiosqlite
-import os
 from typing import List, Dict, Optional, Any
+from sqlalchemy.future import select
+from sqlalchemy import delete, insert, update, desc, func
+from sqlalchemy.exc import IntegrityError
 
+from app.models import AsyncSessionLocal, User, Website, Post, UsedKeyphrase
 from core.logging import get_logger
-from core.config import settings
 
 logger = get_logger(__name__)
 
-
 class Database:
     """
-    Thin async repository layer over aiosqlite.
-    Each method opens its own connection to remain safe under concurrent
-    async use without a connection pool.
+    Async PostgreSQL Database Layer via SQLAlchemy ORM over asyncpg.
     """
 
     def __init__(self, db_path: str | None = None) -> None:
-        self.db_path = db_path or settings.DATABASE_PATH
-        os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else "data", exist_ok=True)
-
-    # ── Helpers ───────────────────────────────────────────────────────────────
-
-    def _connect(self) -> aiosqlite.Connection:
-        """Open a new async SQLite connection with row-factory set."""
-        return aiosqlite.connect(self.db_path)
-
-    # ── Schema Initialization ─────────────────────────────────────────────────
+        pass
 
     async def init_db(self) -> None:
-        """Create tables and run inline migrations. Idempotent."""
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
+        pass # Migrations handled by Alembic now
 
-            # websites table
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS websites (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name       TEXT    NOT NULL,
-                    domain     TEXT    NOT NULL,
-                    cms_type   TEXT    NOT NULL,
-                    api_url    TEXT    NOT NULL,
-                    api_key    TEXT,
-                    api_secret TEXT,
-                    user_id    INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+    def _connect(self):
+        """Deprecated – use AsyncSessionLocal instead."""
+        raise DeprecationWarning("Use AsyncSessionLocal for all database operations.")
 
-            # posts table
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS posts (
-                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title            TEXT    NOT NULL,
-                    slug             TEXT    NOT NULL,
-                    content          TEXT    NOT NULL,
-                    meta_description TEXT,
-                    keywords         TEXT,
-                    focus_keyphrase  TEXT,
-                    seo_title        TEXT,
-                    category         TEXT,
-                    seo_score        INTEGER DEFAULT 0,
-                    image_url        TEXT,
-                    website_id       INTEGER,
-                    published        INTEGER DEFAULT 0,
-                    published_url    TEXT,
-                    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (website_id) REFERENCES websites(id)
-                )
-            """)
-
-            # used_keyphrases table
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS used_keyphrases (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    website_id INTEGER,
-                    keyphrase  TEXT    NOT NULL,
-                    post_id    INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (website_id) REFERENCES websites(id),
-                    FOREIGN KEY (post_id)    REFERENCES posts(id),
-                    UNIQUE(website_id, keyphrase)
-                )
-            """)
-
-            # ── Inline column migrations ───────────────────────────────────────
-            cursor = await conn.execute("PRAGMA table_info(posts)")
-            rows = await cursor.fetchall()
-            existing_columns = {row[1] for row in rows}
-
-            for col, definition in [
-                ("focus_keyphrase", "TEXT"),
-                ("seo_title", "TEXT"),
-                ("user_id", "INTEGER"),
-            ]:
-                if col not in existing_columns:
-                    await conn.execute(f"ALTER TABLE posts ADD COLUMN {col} {definition}")
-                    logger.info("Schema migration applied", extra={"added_column": f"posts.{col}"})
-                    
-            cursor = await conn.execute("PRAGMA table_info(websites)")
-            rows = await cursor.fetchall()
-            existing_columns_webs = {row[1] for row in rows}
-
-            for col, definition in [
-                ("user_id", "INTEGER"),
-            ]:
-                if col not in existing_columns_webs:
-                    await conn.execute(f"ALTER TABLE websites ADD COLUMN {col} {definition}")
-                    logger.info("Schema migration applied", extra={"added_column": f"websites.{col}"})
-
-            await conn.commit()
-            logger.info("Database tables initialized successfully")
+    def _obj_to_dict(self, obj) -> Dict[str, Any]:
+        if not obj:
+            return None
+        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
     # ── Keyphrase Tracking ────────────────────────────────────────────────────
 
@@ -129,29 +36,25 @@ class Database:
         post_id: int,
         website_id: Optional[int] = None,
     ) -> None:
-        sql = """
-            INSERT OR IGNORE INTO used_keyphrases (website_id, keyphrase, post_id)
-            VALUES (?, ?, ?)
-        """
-        async with self._connect() as conn:
-            await conn.execute(sql, (website_id, keyphrase.lower().strip(), post_id))
-            await conn.commit()
+        async with AsyncSessionLocal() as session:
+            try:
+                kp = UsedKeyphrase(website_id=website_id, keyphrase=keyphrase.lower().strip(), post_id=post_id)
+                session.add(kp)
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
 
     async def is_keyphrase_used(
         self,
         keyphrase: str,
         website_id: Optional[int] = None,
     ) -> bool:
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
+        async with AsyncSessionLocal() as session:
+            query = select(UsedKeyphrase).where(UsedKeyphrase.keyphrase == keyphrase.lower().strip())
             if website_id:
-                sql = "SELECT 1 FROM used_keyphrases WHERE keyphrase = ? AND website_id = ?"
-                params: tuple = (keyphrase.lower().strip(), website_id)
-            else:
-                sql = "SELECT 1 FROM used_keyphrases WHERE keyphrase = ?"
-                params = (keyphrase.lower().strip(),)
-            cursor = await conn.execute(sql, params)
-            return (await cursor.fetchone()) is not None
+                query = query.where(UsedKeyphrase.website_id == website_id)
+            result = await session.execute(query)
+            return result.scalars().first() is not None
 
     # ── Website CRUD ──────────────────────────────────────────────────────────
 
@@ -167,40 +70,48 @@ class Database:
     ) -> int:
         if not api_url.startswith("http"):
             api_url = f"https://{api_url}"
-        sql = """
-            INSERT INTO websites (name, domain, cms_type, api_url, api_key, api_secret, user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute(sql, (name, domain, cms_type, api_url, api_key, api_secret, user_id))
-            await conn.commit()
+        async with AsyncSessionLocal() as session:
+            ws = Website(
+                name=name, domain=domain, cms_type=cms_type, api_url=api_url,
+                api_key=api_key, api_secret=api_secret, user_id=user_id
+            )
+            session.add(ws)
+            await session.commit()
             logger.info("Website added", extra={"website_name": name, "cms_type": cms_type, "user_id": user_id})
-            return cursor.lastrowid  # type: ignore[return-value]
+            return ws.id
 
     async def get_websites(self, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
-            query = "SELECT * FROM websites WHERE user_id = ? ORDER BY created_at DESC" if user_id is not None else "SELECT * FROM websites ORDER BY created_at DESC"
-            params = (user_id,) if user_id is not None else ()
-            cursor = await conn.execute(query, params)
-            return [dict(row) for row in await cursor.fetchall()]
+        async with AsyncSessionLocal() as session:
+            query = select(Website).order_by(desc(Website.created_at))
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Website.user_id.is_(None))
+                else:
+                    query = query.where(Website.user_id == user_id)
+            result = await session.execute(query)
+            return [self._obj_to_dict(ws) for ws in result.scalars().all()]
 
     async def get_website(self, website_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
-            query = "SELECT * FROM websites WHERE id = ? AND user_id = ?" if user_id is not None else "SELECT * FROM websites WHERE id = ?"
-            params = (website_id, user_id) if user_id is not None else (website_id,)
-            cursor = await conn.execute(query, params)
-            row = await cursor.fetchone()
-            return dict(row) if row else None
+        async with AsyncSessionLocal() as session:
+            query = select(Website).where(Website.id == website_id)
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Website.user_id.is_(None))
+                else:
+                    query = query.where(Website.user_id == user_id)
+            result = await session.execute(query)
+            return self._obj_to_dict(result.scalars().first())
 
     async def delete_website(self, website_id: int, user_id: Optional[int] = None) -> None:
-        async with self._connect() as conn:
-            query = "DELETE FROM websites WHERE id = ? AND user_id = ?" if user_id is not None else "DELETE FROM websites WHERE id = ?"
-            params = (website_id, user_id) if user_id is not None else (website_id,)
-            await conn.execute(query, params)
-            await conn.commit()
+        async with AsyncSessionLocal() as session:
+            query = delete(Website).where(Website.id == website_id)
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Website.user_id.is_(None))
+                else:
+                    query = query.where(Website.user_id == user_id)
+            await session.execute(query)
+            await session.commit()
             logger.info("Website deleted", extra={"website_id": website_id, "user_id": user_id})
 
     # ── Post CRUD ─────────────────────────────────────────────────────────────
@@ -223,23 +134,19 @@ class Database:
         if not slug:
             slug = title.lower().replace(" ", "-").replace(",", "").replace(".", "")
 
-        sql = """
-            INSERT INTO posts
-                (title, slug, content, meta_description, keywords,
-                 focus_keyphrase, seo_title, category, website_id, image_url, seo_score, user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute(sql, (
-                title, slug, content, meta_description, keywords,
-                focus_keyphrase, seo_title, category, website_id, image_url, seo_score, user_id
-            ))
-            await conn.commit()
-            post_id = cursor.lastrowid  # type: ignore[assignment]
+        async with AsyncSessionLocal() as session:
+            post = Post(
+                title=title, slug=slug, content=content, meta_description=meta_description,
+                keywords=keywords, focus_keyphrase=focus_keyphrase, seo_title=seo_title,
+                category=category, website_id=website_id, image_url=image_url, 
+                seo_score=seo_score, user_id=user_id
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
 
         if focus_keyphrase and website_id:
-            await self.add_used_keyphrase(focus_keyphrase, post_id, website_id)  # type: ignore[arg-type]
+            await self.add_used_keyphrase(focus_keyphrase, post_id, website_id)
 
         logger.info(
             "Post saved to database",
@@ -250,104 +157,92 @@ class Database:
                 "focus_keyphrase": focus_keyphrase,
             },
         )
-        return post_id  # type: ignore[return-value]
+        return post_id
 
     async def get_posts(self, limit: int = 50, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        sql = """
-            SELECT p.*, w.name AS website_name
-            FROM   posts     p
-            LEFT JOIN websites w ON p.website_id = w.id
-            WHERE p.user_id = ?
-            ORDER BY p.created_at DESC
-            LIMIT ?
-        """ if user_id is not None else """
-            SELECT p.*, w.name AS website_name
-            FROM   posts     p
-            LEFT JOIN websites w ON p.website_id = w.id
-            ORDER BY p.created_at DESC
-            LIMIT ?
-        """
-        params = (user_id, limit) if user_id is not None else (limit,)
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
-            cursor = await conn.execute(sql, params)
-            return [dict(row) for row in await cursor.fetchall()]
+        async with AsyncSessionLocal() as session:
+            query = select(Post, Website.name.label("website_name")).outerjoin(Website, Post.website_id == Website.id)
+            query = query.order_by(desc(Post.created_at)).limit(limit)
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Post.user_id.is_(None))
+                else:
+                    query = query.where(Post.user_id == user_id)
+            
+            result = await session.execute(query)
+            rows = result.all()
+            
+            out = []
+            for post, website_name in rows:
+                p_dict = self._obj_to_dict(post)
+                p_dict["website_name"] = website_name
+                out.append(p_dict)
+            return out
 
     async def get_post(self, post_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
-            query = "SELECT * FROM posts WHERE id = ? AND user_id = ?" if user_id is not None else "SELECT * FROM posts WHERE id = ?"
-            params = (post_id, user_id) if user_id is not None else (post_id,)
-            cursor = await conn.execute(query, params)
-            row = await cursor.fetchone()
-            return dict(row) if row else None
+        async with AsyncSessionLocal() as session:
+            query = select(Post).where(Post.id == post_id)
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Post.user_id.is_(None))
+                else:
+                    query = query.where(Post.user_id == user_id)
+            result = await session.execute(query)
+            return self._obj_to_dict(result.scalars().first())
 
     async def get_published_posts_for_internal_linking(
         self,
         website_id: Optional[int] = None,
         limit: int = 20,
     ) -> List[Dict[str, Any]]:
-        async with self._connect() as conn:
-            conn.row_factory = aiosqlite.Row
+        async with AsyncSessionLocal() as session:
+            query = select(Post).where(Post.published == 1, Post.published_url.is_not(None))
             if website_id:
-                sql = """
-                    SELECT id, title, published_url, keywords, focus_keyphrase
-                    FROM   posts
-                    WHERE  published = 1 AND published_url IS NOT NULL AND website_id = ?
-                    ORDER BY created_at DESC LIMIT ?
-                """
-                params: tuple = (website_id, limit)
-            else:
-                sql = """
-                    SELECT id, title, published_url, keywords, focus_keyphrase
-                    FROM   posts
-                    WHERE  published = 1 AND published_url IS NOT NULL
-                    ORDER BY created_at DESC LIMIT ?
-                """
-                params = (limit,)
-            cursor = await conn.execute(sql, params)
-            return [dict(row) for row in await cursor.fetchall()]
+                query = query.where(Post.website_id == website_id)
+            query = query.order_by(desc(Post.created_at)).limit(limit)
+            result = await session.execute(query)
+            return [self._obj_to_dict(p) for p in result.scalars().all()]
 
     async def update_post(self, post_id: int, user_id: Optional[int] = None, **kwargs: Any) -> None:
         allowed = {
             "title", "slug", "content", "meta_description", "keywords",
             "focus_keyphrase", "seo_title", "category", "seo_score", "image_url",
         }
-        fields, values = [], []
-        for field in allowed:
-            if field in kwargs:
-                fields.append(f"{field} = ?")
-                values.append(kwargs[field])
-
-        if not fields:
+        update_data = {k: v for k, v in kwargs.items() if k in allowed}
+        if not update_data:
             return
 
-        values.append(post_id)
-        if user_id is not None:
-            values.append(user_id)
-            sql = f"UPDATE posts SET {', '.join(fields)} WHERE id = ? AND user_id = ?"
-        else:
-            sql = f"UPDATE posts SET {', '.join(fields)} WHERE id = ?"
-            
-        async with self._connect() as conn:
-            await conn.execute(sql, values)
-            await conn.commit()
+        async with AsyncSessionLocal() as session:
+            query = update(Post).where(Post.id == post_id)
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Post.user_id.is_(None))
+                else:
+                    query = query.where(Post.user_id == user_id)
+            query = query.values(**update_data)
+            await session.execute(query)
+            await session.commit()
 
     async def update_post_published(self, post_id: int, published_url: str, user_id: Optional[int] = None) -> None:
-        query = "UPDATE posts SET published = 1, published_url = ? WHERE id = ? AND user_id = ?" if user_id is not None else "UPDATE posts SET published = 1, published_url = ? WHERE id = ?"
-        params = (published_url, post_id, user_id) if user_id is not None else (published_url, post_id)
-        async with self._connect() as conn:
-            await conn.execute(query, params)
-            await conn.commit()
-        logger.info("Post marked as published", extra={"post_id": post_id, "url": published_url, "user_id": user_id})
+        async with AsyncSessionLocal() as session:
+            query = update(Post).where(Post.id == post_id).values(published=1, published_url=published_url)
+            if user_id is not None:
+                if user_id == 0:
+                    query = query.where(Post.user_id.is_(None))
+                else:
+                    query = query.where(Post.user_id == user_id)
+            await session.execute(query)
+            await session.commit()
+            logger.info("Post marked as published", extra={"post_id": post_id, "url": published_url, "user_id": user_id})
 
     async def delete_post(self, post_id: int, user_id: Optional[int] = None) -> None:
-        async with self._connect() as conn:
-            query = "DELETE FROM posts WHERE id = ? AND user_id = ?" if user_id is not None else "DELETE FROM posts WHERE id = ?"
-            params = (post_id, user_id) if user_id is not None else (post_id,)
-            await conn.execute(query, params)
-            await conn.commit()
-        logger.info("Post deleted", extra={"post_id": post_id, "user_id": user_id})
+        async with AsyncSessionLocal() as session:
+            query = delete(Post).where(Post.id == post_id)
+            if user_id is not None:
+                query = query.where(Post.user_id == user_id)
+            await session.execute(query)
+            await session.commit()
+            logger.info("Post deleted", extra={"post_id": post_id, "user_id": user_id})
 
 
 # Global singleton

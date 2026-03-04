@@ -366,15 +366,50 @@ async function generateBlog() {
         const text = await res.text();
 
         if (!res.ok) {
-            let errMsg = 'Generation failed';
+            let errMsg = 'Generation failed to start';
             try { errMsg = JSON.parse(text).detail || errMsg; } catch { /* */ }
             throw new Error(errMsg);
         }
 
-        const result = JSON.parse(text);
+        const initialResult = JSON.parse(text);
+
+        if (!initialResult.task_id) {
+            throw new Error("Invalid response from server (missing task_id)");
+        }
+
+        const taskId = initialResult.task_id;
+        let isPolling = true;
+        let finalResult = null;
+
+        while (isPolling) {
+            await new Promise(r => setTimeout(r, 5000)); // Poll every 5 seconds
+
+            const statusRes = await fetchWithAuth(`${API}/generate/status/${taskId}`);
+            const statusText = await statusRes.text();
+
+            if (!statusRes.ok) {
+                let errMsg = 'Status check failed';
+                try { errMsg = JSON.parse(statusText).detail || errMsg; } catch { /* */ }
+                throw new Error(errMsg);
+            }
+
+            const result = JSON.parse(statusText);
+
+            if (result.status === 'completed') {
+                isPolling = false;
+                finalResult = result;
+            } else if (result.status === 'failed') {
+                isPolling = false;
+                throw new Error(result.detail || "Background blog generation failed");
+            }
+            // If processing, loop around
+        }
+
         clearInterval(stepInterval);
         steps.forEach(id => { const el = document.getElementById(id); if (el) el.className = 'step done'; });
         document.getElementById('progress-bar').style.width = '100%';
+
+        const result = finalResult;
 
         toast(
             `Blog post generated! SEO Score: ${result.seo_score}/100${result.focus_keyphrase ? ' · Focus: ' + result.focus_keyphrase : ''

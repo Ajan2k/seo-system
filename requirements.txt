@@ -8,12 +8,10 @@ python-dotenv==1.0.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# ── Async Database ────────────────────────────────────────────
-aiosqlite==0.19.0
+# ── Async Files ────────────────────────────────────────────
 aiofiles==23.2.1
 
 # ── HTTP Clients ──────────────────────────────────────────────
-httpx==0.25.2
 requests==2.31.0
 
 # ── Templating & Static Files ─────────────────────────────────
@@ -29,8 +27,23 @@ feedparser==6.0.10
 # ── Image Processing ──────────────────────────────────────────
 Pillow==9.5.0
 
-# ── CMS Auth ─────────────────────────────────────────────────
+# ── CMS Auth & Security ──────────────────────────────────────
 PyJWT==2.8.0
+passlib[bcrypt]==1.7.4
 
 # ── AI / Groq SDK ─────────────────────────────────────────────
 groq==0.3.0
+
+# ── Testing & HTTP ────────────────────────────────────────────
+pytest==8.1.1
+pytest-asyncio==0.23.5
+httpx==0.28.1
+
+# ── Celery/Redis & PostgreSQL ─────────────────────────────────
+celery==5.6.2
+redis==7.2.1
+asyncpg==0.31.0
+SQLAlchemy==2.0.48
+alembic==1.14.1
+SQLAlchemy-Utils==0.42.1
+
