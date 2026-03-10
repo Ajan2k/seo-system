@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # ── AI / Groq ────────────────────────────────────────────────────────────
     GROQ_API_KEY: str = Field(default="")
     GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile")
-    GROQ_MAX_TOKENS: int = Field(default=4500)
+    GROQ_MAX_TOKENS: int = Field(default=7000)
     GROQ_TEMPERATURE: float = Field(default=0.1)
     GROQ_TIMEOUT: float = Field(default=120.0)
 
