@@ -206,3 +206,9 @@ async def get_current_admin(request: Request) -> int:
     if not user_data["user"].get("is_admin"):
         raise HTTPException(status_code=403, detail="Forbidden")
     return user_data["user"]["id"]
+
+async def get_user_dict(request: Request) -> dict:
+    user_data = await get_current_user(request)
+    if not user_data or "user" not in user_data:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return user_data["user"]

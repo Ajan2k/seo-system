@@ -77,3 +77,15 @@ class UsedKeyphrase(Base):
     keyphrase = Column(String(200), nullable=False)
     post_id = Column(Integer, ForeignKey("posts.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    razorpay_order_id = Column(String(100), unique=True, index=True, nullable=False)
+    razorpay_payment_id = Column(String(100), unique=True, index=True, nullable=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), default='USD')
+    status = Column(String(50), default='created') # created, paid, failed
+    plan_purchased = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

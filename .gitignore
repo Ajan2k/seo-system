@@ -10,3 +10,5 @@ yoast-rest-api.zip
 .pytest_cache/
 test.py
 logs/
+error.log
+error2.log

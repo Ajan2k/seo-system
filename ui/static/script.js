@@ -289,7 +289,7 @@ function renderPosts() {
                     <button class="btn btn-info btn-sm" onclick="window.location.href='/post/${post.id}'">👁 Preview</button>
                     ${!post.published
                 ? `${siteDropdown}
-                           <button class="btn btn-success btn-sm" onclick="publishPost(${post.id})">🚀 Publish</button>`
+                           <button id="pub-btn-${post.id}" class="btn btn-success btn-sm" onclick="publishPost(${post.id})">🚀 Publish</button>`
                 : `<a href="${esc(post.published_url || '#')}" target="_blank" class="btn btn-outline btn-sm">🔗 View Live</a>`}
                     <button class="btn btn-danger btn-sm" onclick="deletePost(${post.id})">🗑 Delete</button>
                 </div>
@@ -456,6 +456,17 @@ async function publishPost(postId) {
     const site = _sites.find(s => s.id === websiteId);
     if (!confirm(`Publish this post to "${site?.name || 'selected website'}"?`)) return;
 
+    const btn = document.getElementById(`pub-btn-${postId}`);
+    let originalText = '';
+    if (btn) {
+        originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="progress-spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;margin-right:4px;vertical-align:middle;"></span> Publishing...`;
+    }
+
+    const loader = document.getElementById('full-loader');
+    if (loader) loader.classList.remove('hidden');
+
     try {
         const res = await fetchWithAuth(`${API}/publish`, {
             method: 'POST',
@@ -467,8 +478,14 @@ async function publishPost(postId) {
 
         toast(`Published to ${site?.name}!`, 'success');
         await loadPosts();
+        if (loader) loader.classList.add('hidden');
     } catch (err) {
+        if (loader) loader.classList.add('hidden');
         toast(err.message || 'Failed to publish. Check your CMS credentials.', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 

@@ -47,3 +47,6 @@ SQLAlchemy==2.0.48
 alembic==1.14.1
 SQLAlchemy-Utils==0.42.1
 
+# ── Payments ───────────────────────────────────────────────
+razorpay==1.4.1
+

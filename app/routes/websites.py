@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 from app.database import db  # <--- Import the global async db instance
-from app.routes.auth import get_user_id
+from app.routes.auth import get_user_id, get_user_dict
 from fastapi import Depends
 
 router = APIRouter()
@@ -16,9 +16,27 @@ class WebsiteCreate(BaseModel):
     api_secret: Optional[str] = None
 
 @router.post("/websites")
-async def create_website(website: WebsiteCreate, user_id: int = Depends(get_user_id)):
+async def create_website(website: WebsiteCreate, user: dict = Depends(get_user_dict)):
     """Add a new website"""
     try:
+        user_id = user["id"]
+        plan = user.get("plan", "free").lower()
+
+        # Enforce CMS limits
+        if plan in ['free', 'starter']:
+            if website.cms_type != 'wordpress':
+                raise HTTPException(status_code=403, detail="Starter plan only supports WordPress.")
+        elif plan == 'professional':
+            if website.cms_type not in ['wordpress', 'ghost']:
+                raise HTTPException(status_code=403, detail="Professional plan only supports WordPress and Ghost.")
+
+        # Enforce Connection Limits
+        current_websites = await db.get_websites(user_id=user_id)
+        if plan in ['free', 'starter'] and len(current_websites) >= 1:
+            raise HTTPException(status_code=403, detail="Starter plan is limited to 1 website. Please upgrade your plan.")
+        elif plan == 'professional' and len(current_websites) >= 5:
+            raise HTTPException(status_code=403, detail="Professional plan is limited to 5 websites. Please upgrade your plan.")
+
         # <--- FIXED: Added await
         website_id = await db.add_website(
             name=website.name,

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = Field(default="")
     GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile")
     GROQ_MAX_TOKENS: int = Field(default=4500)
-    GROQ_TEMPERATURE: float = Field(default=0.7)
+    GROQ_TEMPERATURE: float = Field(default=0.1)
     GROQ_TIMEOUT: float = Field(default=120.0)
 
     # ── Image APIs ───────────────────────────────────────────────────────────
@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     SEO_META_MIN_LENGTH: int = Field(default=120)
     SEO_TITLE_MAX_LENGTH: int = Field(default=60)
     SEO_WORD_COUNT_TARGET: int = Field(default=1600)
+
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
 
     # ── Logging ──────────────────────────────────────────────────────────────
     LOG_LEVEL: str = Field(default="INFO")       # DEBUG | INFO | WARNING | ERROR | CRITICAL

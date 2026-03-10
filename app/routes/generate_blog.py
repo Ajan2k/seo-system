@@ -126,127 +126,6 @@ class GroqAPI:
                 },
             )
 
-        # Heading suggestion block from research
-        heading_suggestions = ""
-        if has_research and getattr(research, "common_headings", []):
-            top = getattr(research, "common_headings", [])[:6]
-            heading_suggestions = (
-                "\n\nSUGGESTED ANGLES (from web research -- adapt freely):\n"
-                + "\n".join(f"  - {h}" for h in top)
-            )
-
-        # ── Detect topic type: specific headline vs generic category ─────
-        # Specific headlines typically have named entities, quotes, or are
-        # news-style (e.g. "Microsoft Uncovers Whisper Leak Attack").
-        # Generic topics are broader (e.g. "artificial intelligence").
-        is_headline = bool(
-            len(topic.split()) >= 6
-            and (
-                any(w[0].isupper() for w in topic.split()[1:] if w and w[0].isalpha())
-                or any(c in topic for c in ["'", '"', ":", "--", "?"])
-                or re.search(r'\b(uncover|reveal|announce|launch|report|study|attack|leak|breach|warn|intro)\w*', topic, re.IGNORECASE)
-            )
-        )
-
-        logger.info("Topic type detected", extra={"is_headline": is_headline, "topic": topic})
-
-        # ── Build the right prompt structure based on topic type ──────────
-        if is_headline:
-            # News / specific headline: content must directly cover the story
-            structure_block = f"""
-MANDATORY STRUCTURE (adapt headings to match the topic - do NOT use generic headings)
-================================================================================
-
-# [Write a compelling title that accurately describes: {topic}]
-
-## Introduction  (180-220 words)
-- Open with the core story/news/claim from the title
-- Include "{primary_keyword}" in the first two sentences
-- Briefly state what happened and why it matters{heading_suggestions}
-
-## [Background / Context]  (220-260 words)
-- Explain the background needed to understand the topic
-- Define any technical terms for a general audience
-
-## [Main Story / Analysis]  (300-350 words)
-- Deep dive into the specific event, finding, or claim in the title
-- Include facts, details, timeline, key players
-- {"Use data from the research context above" if has_research else "Use credible sources"}
-
-## [Impact / Implications]  (260-300 words)
-- Who is affected and how?
-- What does this mean for the industry?
-- Short-term vs long-term implications
-
-## [Expert Perspectives / Industry Response]  (200-250 words)
-- Different viewpoints on the topic
-- Industry reactions and expert opinions
-
-## [What This Means for Businesses / Readers]  (200-250 words)
-- Practical takeaways
-- How businesses or individuals should respond
-- Mention {brand_name} solutions naturally if relevant
-
-## [Looking Ahead / What to Watch]  (140-170 words)
-- Future developments to watch
-- Upcoming milestones or decisions
-
-## Conclusion  (130-160 words)
-- Summarize the key points from the article
-- What the reader should remember
-- Optional CTA: "{brand_name} helps organizations navigate these changes."
-"""
-        else:
-            # Generic / guide-style topic: use the structured template
-            structure_block = f"""
-MANDATORY STRUCTURE
-================================================================================
-
-# {topic}
-
-## Introduction  (180-220 words)
-- Open with a compelling hook referencing a real fact{"from the research above" if has_research else ""}
-- Include "{primary_keyword}" in the first two sentences
-- State what the reader will learn{heading_suggestions}
-
-## What is {primary_keyword}?  (220-260 words)
-- Precise definition, context, current relevance, key components
-
-## Key Benefits of {primary_keyword}  (280-320 words)
-- 5-7 benefits with supporting data points
-- {"Cite specific figures from the research context" if has_research else "Include realistic % or $ metrics"}
-- Mix bullet points with short explanatory paragraphs
-
-## How {primary_keyword} Works  (260-300 words)
-### Core Mechanism
-### Step-by-Step Implementation
-1. Step with detail
-2. Step with detail
-3. Step with detail
-4. Step with detail
-
-## Real-World Applications  (280-320 words)
-### {industries[0] if industries else 'Healthcare'} - specific use-case with measurable outcome
-### {industries[1] if len(industries) > 1 else 'Education'} - specific use-case with measurable outcome
-### {industries[2] if len(industries) > 2 else 'Retail'} - specific use-case with measurable outcome
-Mention {brand_name} solutions naturally in at least one sub-section.
-
-## Best Practices & Expert Tips  (230-270 words)
-- 6 actionable best practices (numbered)
-- At least 2 expert tips attributed naturally
-
-## Common Challenges - and How to Solve Them  (180-220 words)
-- 3 challenges with practical solutions
-
-## Future Outlook  (140-170 words)
-- {"Reference forward-looking data from the research context" if has_research else "Emerging trends for the next 2-3 years"}
-- Brief mention of {brand_name}'s vision
-
-## Conclusion  (130-160 words)
-- 3 key takeaways
-- CTA: "Contact {brand_name} today to explore how {primary_keyword} can transform your business."
-"""
-
         prompt = f"""{research_block}
 Write a comprehensive, SEO-optimized blog post on the following topic.
 
@@ -267,8 +146,6 @@ WORD COUNT:      1,700-2,000 words (strict)
 KEYWORD DENSITY: 1.5-2 % for primary keyword (natural placement only)
 TONE:            Conversational yet authoritative
 FACTS:           {"Use ONLY statistics from the RESEARCH CONTEXT above. Do NOT invent numbers." if has_research else "Use credible industry statistics (McKinsey, Gartner, Forrester, IDC)."}
-
-{structure_block}
 
 ================================================================================
 SEO & QUALITY RULES
@@ -325,7 +202,7 @@ SEO & QUALITY RULES
                         },
                         {"role": "user", "content": prompt_clean},
                     ],
-                    "temperature": 0.65,
+                    "temperature": 0.1,
                     "max_tokens":  settings.GROQ_MAX_TOKENS,
                     "top_p":       0.9,
                 },

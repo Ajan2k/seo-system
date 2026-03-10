@@ -51,7 +51,7 @@ logger = get_logger(__name__)
 
 # ── App imports ───────────────────────────────────────────────────────────────
 from app.database import db
-from app.routes import generate_blog, publish_post, websites, image_gen, seo_score, auth, admin_data
+from app.routes import generate_blog, publish_post, websites, image_gen, seo_score, auth, admin_data, payments
 
 
 # ─── Lifespan ────────────────────────────────────────────────────────────────
@@ -135,6 +135,7 @@ app.include_router(image_gen.router, prefix="/api")
 app.include_router(seo_score.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(admin_data.router, prefix="/api")
+app.include_router(payments.router, prefix="/api", tags=["💳 Payments"])
 
 # ─── WordPress Config Check ───────────────────────────────────────────────────
 

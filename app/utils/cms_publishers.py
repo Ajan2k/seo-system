@@ -42,6 +42,9 @@ class CMSPublisher:
         """Convert a subset of Markdown to HTML with image-first handling."""
         text = (markdown_content or '').replace('\r\n', '\n')
 
+        # 0) Remove the very first H1 heading if it exists at the top to avoid duplicating the CMS title
+        text = re.sub(r'^\s*#\s+(.+?)\n+', '', text, count=1)
+
         # 1) Extract code blocks to placeholders to avoid interfering transforms
         code_blocks: list[str] = []
 
