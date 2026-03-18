@@ -68,6 +68,8 @@ class Database:
         api_secret: Optional[str] = None,
         user_id: Optional[int] = None,
     ) -> int:
+        if user_id == 0:
+            user_id = None
         if not api_url.startswith("http"):
             api_url = f"https://{api_url}"
         async with AsyncSessionLocal() as session:
@@ -131,6 +133,8 @@ class Database:
         seo_score: int = 0,
         user_id: Optional[int] = None,
     ) -> int:
+        if user_id == 0:
+            user_id = None
         if not slug:
             slug = title.lower().replace(" ", "-").replace(",", "").replace(".", "")
 
@@ -239,7 +243,10 @@ class Database:
         async with AsyncSessionLocal() as session:
             query = delete(Post).where(Post.id == post_id)
             if user_id is not None:
-                query = query.where(Post.user_id == user_id)
+                if user_id == 0:
+                    query = query.where(Post.user_id.is_(None))
+                else:
+                    query = query.where(Post.user_id == user_id)
             await session.execute(query)
             await session.commit()
             logger.info("Post deleted", extra={"post_id": post_id, "user_id": user_id})

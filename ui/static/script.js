@@ -415,7 +415,7 @@ async function generateBlog() {
             `Blog post generated! SEO Score: ${result.seo_score}/100${result.focus_keyphrase ? ' · Focus: ' + result.focus_keyphrase : ''
             }`,
             'success',
-            8000,
+            8001,
         );
 
         // Clear form
@@ -427,7 +427,7 @@ async function generateBlog() {
         await loadPosts();
     } catch (err) {
         clearInterval(stepInterval);
-        toast(err.message || 'Generation failed. Check your Groq API key.', 'error', 8000);
+        toast(err.message || 'Generation failed. Check your Groq API key.', 'error', 8001);
         console.error('generateBlog:', err);
     } finally {
         await new Promise(r => setTimeout(r, 800));

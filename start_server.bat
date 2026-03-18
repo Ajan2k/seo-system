@@ -8,8 +8,8 @@ echo.
 echo  ============================================
 echo   AI Blog Automation v2.0 - Dev Server
 echo  ============================================
-echo   Dashboard:  http://127.0.0.1:8000
-echo   API Docs:   http://127.0.0.1:8000/docs
+echo   Dashboard:  http://127.0.0.1:8001
+echo   API Docs:   http://127.0.0.1:8001/docs
 echo  ============================================
 echo.
 
@@ -23,6 +23,6 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 :: Start the server
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 
 pause

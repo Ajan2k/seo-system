@@ -4,7 +4,7 @@ import json
 
 async def main():
     print("Sending test request to /api/generate ...")
-    async with httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=200) as c:
+    async with httpx.AsyncClient(base_url="http://127.0.0.1:8001", timeout=200) as c:
         r = await c.post("/api/generate", json={
             "category":     "technology",
             "custom_topic": "AI tools for productivity",

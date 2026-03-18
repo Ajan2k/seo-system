@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # ── Server ───────────────────────────────────────────────────────────────
     HOST: str = Field(default="127.0.0.1")
-    PORT: int = Field(default=8000)
+    PORT: int = Field(default=8001)
 
     # ── Database ─────────────────────────────────────────────────────────────
     # PostgreSQL is configured via DATABASE_URL env var in models.py

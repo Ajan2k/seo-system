@@ -2,7 +2,7 @@
 
 python -m app.main
 
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 
 docker-compose down 
 docker-compose build --no-cache 

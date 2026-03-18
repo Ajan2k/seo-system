@@ -400,7 +400,7 @@
                 <div style="font-size:0.78rem;font-weight:600;color:#f0f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${user.name || 'User'}</div>
                 <div style="font-size:0.68rem;color:#6B6B8D;">${user.credits || 0} credits | Plan: ${user.plan || 'Free'}</div>
             </div>
-            <button onclick="openUpgradeModal()" title="Upgrade Plan" style="background:none;border:none;cursor:pointer;color:#00D2FF;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg></button>
+            ${localStorage.getItem('blogai_token') === 'demo-token' ? '' : '<button onclick="openUpgradeModal()" title="Upgrade Plan" style="background:none;border:none;cursor:pointer;color:#00D2FF;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg></button>'}
             ${user.is_admin ? '<button onclick="window.location.href=\'/admin/dashboard\'" title="SuperAdmin Panel" style="background:none;border:none;cursor:pointer;color:#ff7675;padding:4px;margin-right:2px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg></button>' : ''}
             <button onclick="handleLogout()" title="Log out" style="background:none;border:none;cursor:pointer;color:#9B9BC0;padding:4px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -417,6 +417,7 @@
         }
 
         function openUpgradeModal() {
+            if (localStorage.getItem('blogai_token') === 'demo-token') return;
             // Check if modal exists, else create it dynamically
             const existingModal = document.getElementById('upgrade-modal');
             if (existingModal) {

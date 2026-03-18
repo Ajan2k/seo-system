@@ -830,7 +830,7 @@ async def regenerate_for_better_seo(post_id: int, user_id: int = Depends(get_use
             target_score = 80,
             website_id  = post.get("website_id"),
         )
-        result = await generate_blog(req)
+        result = await generate_blog(request=req, user_id=user_id)
 
         logger.info("Post regenerated", extra={
             "post_id":     post_id,
