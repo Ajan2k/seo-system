@@ -2,19 +2,30 @@ services:
   # 1. The main FastAPI Web Service
   - type: web
     name: ai-blog-automation
-    runtime: python               
+    runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PYTHON_VERSION       
+      - key: PYTHON_VERSION
         value: 3.11.9
       - key: GROQ_API_KEY
-        sync: false               
+        sync: false
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: ai-blog-redis
-          property: connectionString
+        sync: false  # Set manually to Upstash Redis URL
+      - key: DATABASE_URL
+        sync: false
+      - key: PEXELS_API_KEY
+        sync: false
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: HF_API_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
   # 2. The Celery Background Worker
   - type: worker
@@ -25,20 +36,23 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
-      - key: DATABASE_URL         # Must be set manually in the Render dashboard for the worker
+      - key: DATABASE_URL
         sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: PEXELS_API_KEY
         sync: false
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: HF_API_KEY
+        sync: false
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: ai-blog-redis
-          property: connectionString
+        sync: false  # Set manually to Upstash Redis URL
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
-  # 3. The Redis Key-Value Store
-  - type: redis
-    name: ai-blog-redis
-    ipAllowList: [] # Only allow internal connections
-    plan: free # Can be updated if you upgrade
+  # Redis service removed - using Upstash Redis instead

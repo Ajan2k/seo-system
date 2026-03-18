@@ -14,10 +14,16 @@ celery_app = Celery(
     include=["app.worker"]
 )
 
+# Configure Redis connection settings for TLS support
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # Redis-specific settings for TLS connections
+    broker_connection_retry_on_startup=True,
+    broker_transport_options={
+        'master_name': 'mymaster'
+    } if 'rediss://' in REDIS_URL else {},  # Only for Redis Sentinel
 )
