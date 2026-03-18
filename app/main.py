@@ -34,7 +34,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -183,27 +183,15 @@ async def check_wordpress_config(config: WordPressCheck):
 
 # ─── Frontend Routes ──────────────────────────────────────────────────────────
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def landing_page(request: Request):
-    """Serve the SaaS landing page."""
-    return templates.TemplateResponse("landing.html", {"request": request})
-
-
-@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
-async def login_page(request: Request):
-    """Serve the login page."""
-    return templates.TemplateResponse("auth.html", {"request": request, "mode": "login", "page_title": "Log In"})
-
-
-@app.get("/signup", response_class=HTMLResponse, include_in_schema=False)
-async def signup_page(request: Request):
-    """Serve the signup page."""
-    return templates.TemplateResponse("auth.html", {"request": request, "mode": "signup", "page_title": "Sign Up"})
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """Redirect root to dashboard (no login needed in demo mode)."""
+    return RedirectResponse(url="/dashboard")
 
 
 @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard(request: Request):
-    """Serve the main dashboard SPA (requires login)."""
+    """Serve the main dashboard SPA."""
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
@@ -213,11 +201,6 @@ async def post_preview(request: Request, post_id: int):
     return templates.TemplateResponse(
         "post_preview.html", {"request": request, "post_id": post_id}
     )
-
-@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
-async def admin_login_page(request: Request):
-    """Serve the admin login page."""
-    return templates.TemplateResponse("auth.html", {"request": request, "mode": "login", "page_title": "Admin Login"})
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse, include_in_schema=False)

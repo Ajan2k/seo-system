@@ -10,14 +10,9 @@ let _sites = [];
 let _posts = [];
 let _filteredPosts = [];
 
-// ── API Fetch Wrapper ───────────────────────────────────────────────────
+// ── API Fetch Wrapper (demo mode – no auth needed) ──────────────────────
 async function fetchWithAuth(url, options = {}) {
-    const token = localStorage.getItem('blogai_token');
-    const headers = { ...options.headers };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    return fetch(url, { ...options, headers });
+    return fetch(url, options);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────

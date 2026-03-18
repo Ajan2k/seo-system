@@ -33,10 +33,7 @@
 
         async function loadPost() {
             try {
-                const token = localStorage.getItem('blogai_token');
-                const response = await fetch(`/api/posts/${postId}`, {
-                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                });
+                const response = await fetch(`/api/posts/${postId}`);
                 const post = await response.json();
 
                 const contentHtml = `

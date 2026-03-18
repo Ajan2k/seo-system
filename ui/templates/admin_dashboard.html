@@ -195,44 +195,25 @@
     <div id="toast-container" aria-live="polite"></div>
 
     <script>
-        // Check Authentication and Admin Status
+        // Demo mode: no auth required
         (function () {
-            const token = localStorage.getItem('blogai_token');
-            const user = JSON.parse(localStorage.getItem('blogai_user') || '{}');
-
-            if (!token) {
-                window.location.href = '/admin';
-                return;
-            }
-            if (!user.is_admin) {
-                alert("Forbidden: You do not have SuperAdmin privileges.");
-                window.location.href = '/dashboard';
-                return;
-            }
-
             const sidebarFooter = document.querySelector('.sidebar-footer');
-            if (sidebarFooter && user.name) {
+            if (sidebarFooter) {
                 const userInfo = document.createElement('div');
                 userInfo.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:rgba(214,48,49,0.1);';
                 userInfo.innerHTML = `
-                    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ff7675,#d63031);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">${user.name ? user.name[0].toUpperCase() : 'A'}</div>
+                    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ff7675,#d63031);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">D</div>
                     <div style="flex:1;min-width:0;">
-                        <div style="font-size:0.78rem;font-weight:600;color:#f0f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${user.name || 'Admin'}</div>
-                        <div style="font-size:0.68rem;color:#ff7675;">SuperAdmin</div>
+                        <div style="font-size:0.78rem;font-weight:600;color:#f0f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Demo Admin</div>
+                        <div style="font-size:0.68rem;color:#ff7675;">SuperAdmin (Demo)</div>
                     </div>
-                    <button onclick="handleLogout()" title="Log out" style="background:none;border:none;cursor:pointer;color:#9B9BC0;padding:4px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <button onclick="window.location.href='/dashboard'" title="Back to Dashboard" style="background:none;border:none;cursor:pointer;color:#9B9BC0;padding:4px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     </button>
                 `;
                 sidebarFooter.insertBefore(userInfo, sidebarFooter.firstChild);
             }
         })();
-
-        function handleLogout() {
-            localStorage.removeItem('blogai_token');
-            localStorage.removeItem('blogai_user');
-            window.location.href = '/';
-        }
 
         function setActiveNav(el) {
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -243,12 +224,7 @@
         }
 
         async function fetchWithAuth(url, options = {}) {
-            const token = localStorage.getItem('blogai_token');
-            const headers = { ...options.headers };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            return fetch(url, { ...options, headers });
+            return fetch(url, options);
         }
 
         async function loadAdminData() {
