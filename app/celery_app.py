@@ -23,7 +23,15 @@ celery_app.conf.update(
     enable_utc=True,
     # Redis-specific settings for TLS connections
     broker_connection_retry_on_startup=True,
-    broker_transport_options={
-        'master_name': 'mymaster'
-    } if 'rediss://' in REDIS_URL else {},  # Only for Redis Sentinel
 )
+
+# Additional SSL configuration for rediss:// URLs
+if REDIS_URL.startswith('rediss://'):
+    celery_app.conf.update(
+        broker_transport_options={
+            'ssl_cert_reqs': 'CERT_NONE',  # For Upstash Redis - accepts self-signed certificates
+        },
+        result_backend_transport_options={
+            'ssl_cert_reqs': 'CERT_NONE',
+        }
+    )
