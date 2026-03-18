@@ -183,10 +183,10 @@ async def check_wordpress_config(config: WordPressCheck):
 
 # ─── Frontend Routes ──────────────────────────────────────────────────────────
 
-@app.get("/", include_in_schema=False)
-async def root_redirect():
-    """Redirect root to dashboard (no login needed in demo mode)."""
-    return RedirectResponse(url="/dashboard")
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def landing_page(request: Request):
+    """Serve the SaaS landing page."""
+    return templates.TemplateResponse("landing.html", {"request": request})
 
 
 @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
