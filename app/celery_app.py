@@ -1,7 +1,11 @@
 import os
 from celery import Celery
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
+# Get Redis URL from environment - validate it's not empty
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+if not REDIS_URL:
+    # Fallback for development
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
 
 celery_app = Celery(
     "infiniteseo_tasks",
